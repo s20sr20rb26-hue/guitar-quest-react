@@ -11,6 +11,8 @@ import {
   type QuestState,
   type PracticeSession,
   type LivePlan,
+  type ExternalSong,
+  type PracticeTarget,
 } from '@/lib/quest';
 import { StatsBar } from '@/components/StatsBar';
 import { QuestTab } from '@/components/QuestTab';
@@ -25,7 +27,7 @@ const SONGS: Song[] = INITIAL_SONGS;
 function App() {
   const [state, setState] = useState<QuestState>(() => loadState());
   const [tab, setTab] = useState<AppTab>('quest');
-  const [logTarget, setLogTarget] = useState<Song | null>(null);
+  const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
 
   useEffect(() => {
     saveState(state);
@@ -116,7 +118,18 @@ function App() {
     }));
   }, []);
 
-  const logSession = useCallback((song: Song) => setLogTarget(song), []);
+  const logSession = useCallback((song: Song) => {
+    setLogTarget({ songNo: song.No, songName: song.曲名, artist: song.アーティスト });
+  }, []);
+
+  const logExternalSession = useCallback((song: ExternalSong) => {
+    setLogTarget({
+      songNo: 0,
+      songName: song.title,
+      artist: song.artist || '未設定',
+      externalSongId: song.id,
+    });
+  }, []);
 
   const saveSession = useCallback(
     (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => {
@@ -128,8 +141,9 @@ function App() {
       const session: PracticeSession = {
         id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
         date: recordedAt.toISOString(),
-        songNo: logTarget.No,
-        songName: logTarget.曲名,
+        songNo: logTarget.songNo,
+        songName: logTarget.songName,
+        externalSongId: logTarget.externalSongId,
         durationMin,
         memo,
         rating,
@@ -213,6 +227,7 @@ function App() {
               state={state}
               onToggleComplete={toggleComplete}
               onLogSession={logSession}
+              onLogExternalSession={logExternalSession}
               onSetGoal={setGoal}
               onSetFavoriteRoutes={setFavoriteRoutes}
               onSetWeeklySong={setWeeklySong}
