@@ -21,7 +21,7 @@ export interface ExternalSong {
   title: string;
   artist: string;
   url: string;
-  service: 'Spotify' | 'YouTube Music' | 'Apple Music' | 'URL';
+  service: 'Spotify' | 'YouTube Music' | 'Apple Music' | 'iTunes' | 'URL';
 }
 
 export interface LivePlan {
@@ -177,6 +177,7 @@ export function getServiceFromUrl(url: string): ExternalSong['service'] {
   const lower = url.toLowerCase();
   if (lower.includes('spotify.com')) return 'Spotify';
   if (lower.includes('music.youtube.com') || lower.includes('youtube.com')) return 'YouTube Music';
+  if (lower.includes('itunes.apple.com')) return 'iTunes';
   if (lower.includes('music.apple.com')) return 'Apple Music';
   return 'URL';
 }
