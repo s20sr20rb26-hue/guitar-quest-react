@@ -11,6 +11,7 @@ import {
   ListMusic,
   ListPlus,
   LoaderCircle,
+  MoreVertical,
   Music2,
   Plus,
   Search,
@@ -136,6 +137,7 @@ export function LiveTab({
 }: LiveTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showPlaylistEditor, setShowPlaylistEditor] = useState(false);
+  const [openSongMenu, setOpenSongMenu] = useState<string | null>(null);
   const [newLiveTitle, setNewLiveTitle] = useState('');
   const [newLiveDate, setNewLiveDate] = useState('');
   const [externalTitle, setExternalTitle] = useState('');
@@ -333,115 +335,154 @@ export function LiveTab({
           </section>
 
           <section className="min-w-0 overflow-hidden">
-            {totalSongs === 0 && (
-              <div className="border-y border-zinc-900 px-4 py-12 text-center text-base text-zinc-500">
-                「プレイリストを編集・追加」から曲を登録できます。
-              </div>
-            )}
-
-            {totalSongs > 0 && (
-              <>
-                <div className="hidden grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] items-center gap-3 border-b border-zinc-800 px-2 pb-2 text-xs font-bold text-zinc-500 sm:grid">
-                  <span className="text-center">#</span>
-                  <span>タイトル</span>
-                  <span>練習</span>
-                  <span>ソース</span>
-                  <span />
-                </div>
-                <div className="divide-y divide-zinc-900">
-                  {liveSongs.map((song, index) => {
-                    const songSessions = sessions.filter((session) => session.songNo === song.No);
-                    const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
-                    return (
-                      <div key={song.No} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] sm:gap-3 sm:px-2">
-                        <span className="hidden text-center text-sm text-zinc-500 sm:block">{index + 1}</span>
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400 shadow-sm">
-                            <Guitar className="h-5 w-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-base font-bold text-white">{song.曲名}</p>
-                            <p className="truncate text-sm text-zinc-500">
-                              {song.アーティスト}
-                              <span className="sm:hidden"> ・ {songSessions.length}回 ・ {minutes}分</span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="hidden text-sm sm:block">
-                          <p className="font-bold text-zinc-300">{songSessions.length}回</p>
-                          <p className="text-xs text-zinc-600">{minutes}分</p>
-                        </div>
-                        <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">登録済み</span>
-                        <div className="flex shrink-0 items-center justify-end gap-1">
-                          <button onClick={() => onLogSession(song)} className="min-h-10 rounded-full bg-emerald-500 px-3 text-xs font-black text-black hover:bg-emerald-400">
-                            記録
-                          </button>
-                          <button onClick={() => onRemoveLiveSong(song.No)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {activeLivePlan.externalSongs.map((song: ExternalSong, index) => {
-                    const songSessions = sessions.filter((session) => session.externalSongId === song.id);
-                    const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
-                    return (
-                      <div key={song.id} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] sm:gap-3 sm:px-2">
-                        <span className="hidden text-center text-sm text-zinc-500 sm:block">{liveSongs.length + index + 1}</span>
-                        <div className="flex min-w-0 items-center gap-3">
-                          <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400 shadow-sm" title="曲を開く">
-                            {song.artworkUrl ? (
-                              <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                            ) : (
-                              <Music2 className="h-5 w-5" />
-                            )}
-                          </a>
-                          <div className="min-w-0">
-                            <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
-                              {song.title}
-                            </a>
-                            <p className="truncate text-sm text-zinc-500">
-                              {song.artist || '未設定'}{song.album ? ` ・ ${song.album}` : ''}
-                              <span className="sm:hidden"> ・ {songSessions.length}回 ・ {minutes}分</span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="hidden text-sm sm:block">
-                          <p className="font-bold text-zinc-300">{songSessions.length}回</p>
-                          <p className="text-xs text-zinc-600">{minutes}分</p>
-                        </div>
-                        <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">{song.service}</span>
-                        <div className="flex shrink-0 items-center justify-end gap-1">
-                          <button onClick={() => onLogExternalSession(song)} className="min-h-10 rounded-full bg-emerald-500 px-3 text-xs font-black text-black hover:bg-emerald-400" aria-label={`${song.title}の練習を記録`}>
-                            記録
-                          </button>
-                          <a href={song.url} target="_blank" rel="noopener noreferrer" className="hidden h-10 w-10 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800 hover:text-white sm:flex" title="曲を開く">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                          <button onClick={() => onRemoveExternalSong(song.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            <div className="mt-4 flex justify-end px-1">
+            <div className="mb-2 flex justify-end px-1">
               <button
                 type="button"
                 onClick={() => setShowPlaylistEditor((current) => !current)}
                 aria-expanded={showPlaylistEditor}
-                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-5 text-sm font-black text-black hover:bg-white sm:w-auto"
+                aria-label={showPlaylistEditor ? 'プレイリスト編集を閉じる' : 'プレイリストを編集・追加'}
+                className="flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-800 hover:text-white"
               >
-                {showPlaylistEditor ? <X className="h-4 w-4" /> : <ListPlus className="h-4 w-4" />}
-                {showPlaylistEditor ? '編集を閉じる' : 'プレイリストを編集・追加'}
+                {showPlaylistEditor ? <X className="h-3.5 w-3.5" /> : <ListPlus className="h-3.5 w-3.5" />}
+                {showPlaylistEditor ? '閉じる' : '編集・追加'}
               </button>
             </div>
+
+            {totalSongs === 0 && (
+              <div className="border-y border-zinc-900 px-4 py-10 text-center text-base text-zinc-500">
+                「編集・追加」から曲を登録できます。
+              </div>
+            )}
+
+            {totalSongs > 0 && (
+              <div className="divide-y divide-zinc-900">
+                {liveSongs.map((song) => {
+                  const menuKey = `database-${song.No}`;
+                  const songSessions = sessions.filter((session) => session.songNo === song.No);
+                  const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
+                  return (
+                    <div key={song.No} className="relative">
+                      <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-1 py-2.5 hover:bg-zinc-900/70 sm:px-2">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400">
+                          <Guitar className="h-6 w-6" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-bold text-white">{song.曲名}</p>
+                          <p className="truncate text-sm text-zinc-500">
+                            {song.アーティスト} ・ {songSessions.length}回 ・ {minutes}分
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOpenSongMenu(openSongMenu === menuKey ? null : menuKey)}
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                          aria-label={`${song.曲名}のメニュー`}
+                        >
+                          <MoreVertical className="h-5 w-5" />
+                        </button>
+                      </div>
+                      {openSongMenu === menuKey && (
+                        <div className="mb-2 ml-auto mr-1 w-52 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onLogSession(song);
+                              setOpenSongMenu(null);
+                            }}
+                            className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-bold text-zinc-100 hover:bg-zinc-800"
+                          >
+                            <Guitar className="h-4 w-4 text-emerald-400" />
+                            練習を記録
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onRemoveLiveSong(song.No);
+                              setOpenSongMenu(null);
+                            }}
+                            className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-bold text-red-300 hover:bg-red-950/50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            リストから削除
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {activeLivePlan.externalSongs.map((song: ExternalSong) => {
+                  const menuKey = `external-${song.id}`;
+                  const songSessions = sessions.filter((session) => session.externalSongId === song.id);
+                  const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
+                  return (
+                    <div key={song.id} className="relative">
+                      <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-1 py-2.5 hover:bg-zinc-900/70 sm:px-2">
+                        <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="曲を開く">
+                          {song.artworkUrl ? (
+                            <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <Music2 className="h-6 w-6" />
+                          )}
+                        </a>
+                        <div className="min-w-0">
+                          <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
+                            {song.title}
+                          </a>
+                          <p className="truncate text-sm text-zinc-500" title={song.album}>
+                            {song.artist || '未設定'} ・ {songSessions.length}回 ・ {minutes}分
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOpenSongMenu(openSongMenu === menuKey ? null : menuKey)}
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                          aria-label={`${song.title}のメニュー`}
+                        >
+                          <MoreVertical className="h-5 w-5" />
+                        </button>
+                      </div>
+                      {openSongMenu === menuKey && (
+                        <div className="mb-2 ml-auto mr-1 w-52 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onLogExternalSession(song);
+                              setOpenSongMenu(null);
+                            }}
+                            className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-bold text-zinc-100 hover:bg-zinc-800"
+                          >
+                            <Guitar className="h-4 w-4 text-emerald-400" />
+                            練習を記録
+                          </button>
+                          <a
+                            href={song.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setOpenSongMenu(null)}
+                            className="flex min-h-11 w-full items-center gap-3 px-4 text-sm font-bold text-zinc-100 hover:bg-zinc-800"
+                          >
+                            <ExternalLink className="h-4 w-4 text-zinc-400" />
+                            曲を開く
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onRemoveExternalSong(song.id);
+                              setOpenSongMenu(null);
+                            }}
+                            className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-bold text-red-300 hover:bg-red-950/50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            リストから削除
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {showPlaylistEditor && (
