@@ -1,8 +1,68 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, Clock, Link2, ListMusic, Music2, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { CalendarDays, Link2, ListMusic, LoaderCircle, Music2, Plus, Search, Trash2 } from 'lucide-react';
 import type { Song } from '@/types';
 import type { ExternalSong, LivePlan, PracticeSession } from '@/lib/quest';
 
+interface ItunesTrack {
+  trackId: number;
+  trackName: string;
+  artistName: string;
+  collectionName: string;
+  trackViewUrl: string;
+  kind: string;
+}
+
+interface ItunesSearchResponse {
+  results: ItunesTrack[];
+}
+
+function searchItunesSongs(term: string): Promise<ItunesTrack[]> {
+  return new Promise((resolve, reject) => {
+    const callbackName = `guitarQuestItunes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const callbackHost = window as unknown as Record<string, unknown>;
+    const script = document.createElement('script');
+    let timeoutId = 0;
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      script.remove();
+      delete callbackHost[callbackName];
+    };
+
+    callbackHost[callbackName] = (response: ItunesSearchResponse) => {
+      cleanup();
+      resolve(
+        response.results.filter(
+          (track) =>
+            track.kind === 'song' &&
+            Boolean(track.trackId && track.trackName && track.artistName && track.trackViewUrl)
+        )
+      );
+    };
+
+    script.async = true;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('iTunesに接続できませんでした。'));
+    };
+    script.src = `https://itunes.apple.com/search?${new URLSearchParams({
+      term,
+      country: 'JP',
+      media: 'music',
+      entity: 'song',
+      limit: '12',
+      lang: 'ja_jp',
+      callback: callbackName,
+    }).toString()}`;
+
+    timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('検索に時間がかかっています。もう一度試してください。'));
+    }, 10000);
+
+    document.body.appendChild(script);
+  });
+}
 interface LiveTabProps {
   songs: Song[];
   livePlan: LivePlan;
@@ -30,6 +90,10 @@ export function LiveTab({
   const [externalTitle, setExternalTitle] = useState('');
   const [externalArtist, setExternalArtist] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
+  const [itunesQuery, setItunesQuery] = useState('');
+  const [itunesResults, setItunesResults] = useState<ItunesTrack[]>([]);
+  const [itunesLoading, setItunesLoading] = useState(false);
+  const [itunesError, setItunesError] = useState('');
 
   const liveSongs = livePlan.songNos
     .map((no) => songs.find((song) => song.No === no))
@@ -62,6 +126,28 @@ export function LiveTab({
     setExternalUrl('');
   };
 
+  const searchItunes = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = itunesQuery.trim();
+    if (!query || itunesLoading) return;
+
+    setItunesLoading(true);
+    setItunesError('');
+    try {
+      const results = await searchItunesSongs(query);
+      setItunesResults(results);
+      if (results.length === 0) setItunesError('曲が見つかりませんでした。');
+    } catch (error) {
+      setItunesResults([]);
+      setItunesError(error instanceof Error ? error.message : '検索できませんでした。');
+    } finally {
+      setItunesLoading(false);
+    }
+  };
+
+  const addItunesTrack = (track: ItunesTrack) => {
+    onAddExternalSong(track.trackName, track.artistName, track.trackViewUrl);
+  };
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
       <section className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/25 via-zinc-900 to-black p-4 shadow-2xl shadow-black/40 sm:rounded-2xl sm:p-6">
@@ -100,6 +186,61 @@ export function LiveTab({
         )}
       </section>
 
+      <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
+        <div className="mb-3 flex items-center gap-2">
+          <Search className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-lg font-bold text-white">iTunesで曲を検索</h2>
+        </div>
+        <form onSubmit={searchItunes} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <input
+            value={itunesQuery}
+            onChange={(event) => setItunesQuery(event.target.value)}
+            placeholder="曲名・アーティスト"
+            autoComplete="off"
+            className="min-h-12 w-full min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+          />
+          <button
+            type="submit"
+            disabled={!itunesQuery.trim() || itunesLoading}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-black text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          >
+            {itunesLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            検索
+          </button>
+        </form>
+
+        {itunesError && <p className="mt-3 text-sm text-amber-300" role="status">{itunesError}</p>}
+
+        {itunesResults.length > 0 && (
+          <div className="mt-4 divide-y divide-zinc-800 overflow-hidden rounded-lg border border-zinc-800">
+            {itunesResults.map((track) => {
+              const isAdded = livePlan.externalSongs.some((song) => song.url === track.trackViewUrl);
+              return (
+                <div key={track.trackId} className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 bg-zinc-950 px-3 py-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-emerald-400">
+                    <Music2 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
+                      {track.trackName}
+                    </a>
+                    <p className="truncate text-sm text-zinc-500">{track.artistName} ・ {track.collectionName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isAdded}
+                    onClick={() => addItunesTrack(track)}
+                    className="flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-full bg-zinc-100 px-3 text-xs font-black text-black hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
+                    aria-label={`${track.trackName}を追加`}
+                  >
+                    {isAdded ? '追加済み' : <><Plus className="h-4 w-4" /><span className="hidden sm:inline">追加</span></>}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
         <div className="mb-3 flex items-center gap-2">
           <Plus className="h-5 w-5 text-emerald-400" />
