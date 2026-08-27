@@ -35,10 +35,13 @@ export interface ExternalSong {
 }
 
 export interface LivePlan {
+  id: string;
   title: string;
   date: string;
   songNos: number[];
   externalSongs: ExternalSong[];
+  createdAt: string;
+  archivedAt?: string;
 }
 
 export interface QuestState {
@@ -49,7 +52,8 @@ export interface QuestState {
   weekStartedAt: string | null;
   sessions: PracticeSession[];
   skillLevels: Record<string, number>;
-  livePlan: LivePlan;
+  livePlans: LivePlan[];
+  activeLivePlanId: string | null;
 }
 
 export const DEFAULT_SKILL_LEVELS: Record<string, number> = {
@@ -100,27 +104,64 @@ export const DEFAULT_SKILL_LEVELS: Record<string, number> = {
 
 const STORAGE_KEY = 'guitar-quest-state-v1';
 
-const DEFAULT_LIVE_PLAN: LivePlan = {
-  title: '次のライブ',
-  date: '',
-  songNos: [],
-  externalSongs: [],
+interface LegacyLivePlan {
+  title?: string;
+  date?: string;
+  songNos?: number[];
+  externalSongs?: ExternalSong[];
+}
+
+type StoredQuestState = Partial<QuestState> & {
+  livePlan?: LegacyLivePlan;
+  livePlans?: Partial<LivePlan>[];
 };
 
-function normalizeLivePlan(plan?: Partial<LivePlan>): LivePlan {
+function makeLiveId(): string {
+  return `live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createLivePlan(title: string, date = ''): LivePlan {
   return {
-    title: plan?.title || '次のライブ',
-    date: plan?.date || '',
-    songNos: Array.isArray(plan?.songNos) ? plan.songNos : [],
-    externalSongs: Array.isArray(plan?.externalSongs) ? plan.externalSongs : [],
+    id: makeLiveId(),
+    title: title.trim() || '無題のライブ',
+    date,
+    songNos: [],
+    externalSongs: [],
+    createdAt: new Date().toISOString(),
   };
+}
+
+function normalizeLivePlan(plan: Partial<LivePlan> | LegacyLivePlan, fallbackId: string): LivePlan {
+  return {
+    id: 'id' in plan && plan.id ? plan.id : fallbackId,
+    title: plan.title?.trim() || '次のライブ',
+    date: plan.date || '',
+    songNos: Array.isArray(plan.songNos) ? plan.songNos : [],
+    externalSongs: Array.isArray(plan.externalSongs) ? plan.externalSongs : [],
+    createdAt: 'createdAt' in plan && plan.createdAt ? plan.createdAt : new Date(0).toISOString(),
+    ...('archivedAt' in plan && plan.archivedAt ? { archivedAt: plan.archivedAt } : {}),
+  };
+}
+
+function makeInitialLivePlan(): LivePlan {
+  return createLivePlan('次のライブ');
 }
 
 export function loadState(): QuestState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<QuestState>;
+      const parsed = JSON.parse(raw) as StoredQuestState;
+      const livePlans = Array.isArray(parsed.livePlans) && parsed.livePlans.length > 0
+        ? parsed.livePlans.map((plan, index) => normalizeLivePlan(plan, `live-${index}`))
+        : parsed.livePlan
+          ? [normalizeLivePlan(parsed.livePlan, 'live-migrated')]
+          : [makeInitialLivePlan()];
+      const availableLive = livePlans.find((plan) => !plan.archivedAt);
+      const savedActiveLive = livePlans.find(
+        (plan) => plan.id === parsed.activeLivePlanId && !plan.archivedAt
+      );
+
       return {
         completedSongNos: parsed.completedSongNos ?? [],
         currentGoal: parsed.currentGoal ?? null,
@@ -129,12 +170,15 @@ export function loadState(): QuestState {
         weekStartedAt: parsed.weekStartedAt ?? null,
         sessions: parsed.sessions ?? [],
         skillLevels: { ...DEFAULT_SKILL_LEVELS, ...parsed.skillLevels },
-        livePlan: normalizeLivePlan(parsed.livePlan),
+        livePlans,
+        activeLivePlanId: savedActiveLive?.id ?? availableLive?.id ?? null,
       };
     }
   } catch {
     // ignore
   }
+
+  const initialLive = makeInitialLivePlan();
   return {
     completedSongNos: [],
     currentGoal: null,
@@ -143,7 +187,8 @@ export function loadState(): QuestState {
     weekStartedAt: null,
     sessions: [],
     skillLevels: { ...DEFAULT_SKILL_LEVELS },
-    livePlan: DEFAULT_LIVE_PLAN,
+    livePlans: [initialLive],
+    activeLivePlanId: initialLive.id,
   };
 }
 
