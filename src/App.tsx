@@ -24,6 +24,7 @@ import { LogSessionModal } from '@/components/LogSessionModal';
 import { SkillsTab } from '@/components/SkillsTab';
 import { LiveTab } from '@/components/LiveTab';
 import { AuthScreen } from '@/components/AuthScreen';
+import { PasswordResetScreen } from '@/components/PasswordResetScreen';
 import { TimelineTab } from '@/components/TimelineTab';
 import { supabase } from '@/lib/supabase';
 import { createPracticePost, deletePracticePost, getProfile, type Profile } from '@/lib/social';
@@ -43,6 +44,7 @@ function App() {
   const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
   const [authSession, setAuthSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
   const [shareNotice, setShareNotice] = useState('');
@@ -65,9 +67,10 @@ function App() {
       setAuthLoading(false);
     });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setAuthSession(nextSession);
       setAuthLoading(false);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       if (!nextSession) setProfile(null);
     });
 
@@ -408,6 +411,10 @@ function App() {
         読み込み中...
       </div>
     );
+  }
+
+  if (passwordRecovery && authSession) {
+    return <PasswordResetScreen onDone={() => setPasswordRecovery(false)} />;
   }
 
   if (!authSession) return <AuthScreen />;
