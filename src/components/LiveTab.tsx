@@ -63,29 +63,29 @@ export function LiveTab({
   };
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl bg-gradient-to-br from-emerald-500/25 via-zinc-900 to-black p-5 shadow-2xl shadow-black/40 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
+      <section className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/25 via-zinc-900 to-black p-4 shadow-2xl shadow-black/40 sm:rounded-2xl sm:p-6">
+        <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Live playlist</p>
             <input
               value={livePlan.title}
               onChange={(event) => onUpdateLivePlan({ title: event.target.value })}
-              className="w-full bg-transparent text-3xl font-black leading-tight text-white outline-none placeholder:text-zinc-600 sm:text-5xl"
+              className="min-w-0 w-full bg-transparent text-3xl font-black leading-tight text-white outline-none placeholder:text-zinc-600 sm:text-5xl"
               placeholder="次のライブ"
             />
-            <div className="mt-4 flex flex-wrap gap-2 text-sm text-zinc-300">
-              <label className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-2">
+            <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 text-sm text-zinc-300 sm:flex sm:flex-wrap">
+              <label className="col-span-2 flex min-w-0 items-center gap-2 rounded-lg bg-white/10 px-3 py-2 sm:col-auto sm:rounded-full">
                 <CalendarDays className="h-4 w-4 text-emerald-300" />
                 <input
                   type="date"
                   value={livePlan.date}
                   onChange={(event) => onUpdateLivePlan({ date: event.target.value })}
-                  className="bg-transparent text-zinc-100 outline-none"
+                  className="min-w-0 w-full bg-transparent text-zinc-100 outline-none sm:w-auto"
                 />
               </label>
-              <span className="rounded-full bg-white/10 px-3 py-2">{totalSongs}曲</span>
-              <span className="rounded-full bg-white/10 px-3 py-2">練習 {totalMinutes}分</span>
+              <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">{totalSongs}曲</span>
+              <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">練習 {totalMinutes}分</span>
             </div>
           </div>
           <div className="hidden h-28 w-28 shrink-0 items-center justify-center rounded-lg bg-emerald-400 text-black shadow-xl shadow-emerald-950/40 sm:flex">
@@ -100,16 +100,16 @@ export function LiveTab({
         )}
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
         <div className="mb-3 flex items-center gap-2">
           <Plus className="h-5 w-5 text-emerald-400" />
           <h2 className="text-lg font-bold text-white">セットリストに追加</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <select
             value={songNo}
             onChange={(event) => setSongNo(event.target.value)}
-            className="min-h-11 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500"
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500"
           >
             <option value="">曲データベースから選ぶ</option>
             {songs.map((song) => (
@@ -120,10 +120,10 @@ export function LiveTab({
             追加
           </button>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <input value={externalTitle} onChange={(event) => setExternalTitle(event.target.value)} placeholder="外部曲名" className="min-h-11 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
-          <input value={externalArtist} onChange={(event) => setExternalArtist(event.target.value)} placeholder="アーティスト" className="min-h-11 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
-          <input value={externalUrl} onChange={(event) => setExternalUrl(event.target.value)} placeholder="Spotify / YouTube Music / Apple Music URL" className="min-h-11 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+        <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-3">
+          <input value={externalTitle} onChange={(event) => setExternalTitle(event.target.value)} placeholder="外部曲名" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+          <input value={externalArtist} onChange={(event) => setExternalArtist(event.target.value)} placeholder="アーティスト" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+          <input value={externalUrl} onChange={(event) => setExternalUrl(event.target.value)} placeholder="Spotify / YouTube Music / Apple Music URL" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
         </div>
         <button onClick={addExternal} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white sm:w-auto">
           <Link2 className="h-4 w-4" />
@@ -145,13 +145,13 @@ export function LiveTab({
           const songSessions = sessions.filter((session) => session.songNo === song.No);
           const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
           return (
-            <div key={song.No} className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-3 hover:bg-zinc-900">
+            <div key={song.No} className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-3 hover:bg-zinc-900 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:gap-3 sm:px-2">
               <span className="text-sm text-zinc-500">{index + 1}</span>
               <div className="min-w-0">
                 <p className="truncate text-base font-bold text-white">{song.曲名}</p>
                 <p className="truncate text-sm text-zinc-500">{song.アーティスト} ・ {songSessions.length}回 ・ {minutes}分</p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <button onClick={() => onLogSession(song)} className="rounded-full bg-emerald-500 px-3 py-2 text-xs font-black text-black hover:bg-emerald-400">
                   記録
                 </button>
@@ -163,10 +163,10 @@ export function LiveTab({
           );
         })}
         {livePlan.externalSongs.map((song: ExternalSong, index) => (
-          <div key={song.id} className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-3 hover:bg-zinc-900">
+          <div key={song.id} className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-3 hover:bg-zinc-900 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:gap-3 sm:px-2">
             <span className="text-sm text-zinc-500">{liveSongs.length + index + 1}</span>
             <div className="min-w-0">
-              <a href={song.url} target="_blank" rel="noopener noreferrer" className="truncate text-base font-bold text-white hover:text-emerald-300">
+              <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
                 {song.title}
               </a>
               <p className="truncate text-sm text-zinc-500">{song.artist || '未設定'} ・ {song.service}</p>
