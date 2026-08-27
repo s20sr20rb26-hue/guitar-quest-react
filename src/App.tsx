@@ -227,7 +227,6 @@ function App() {
               state={state}
               onToggleComplete={toggleComplete}
               onLogSession={logSession}
-              onLogExternalSession={logExternalSession}
               onSetGoal={setGoal}
               onSetFavoriteRoutes={setFavoriteRoutes}
               onSetWeeklySong={setWeeklySong}
@@ -247,6 +246,7 @@ function App() {
               onAddExternalSong={addExternalSong}
               onRemoveExternalSong={removeExternalSong}
               onLogSession={logSession}
+              onLogExternalSession={logExternalSession}
             />
           )}
           {tab === 'skills' && <SkillsTab state={state} onUpdateSkill={updateSkill} onResetAll={resetAllSkills} />}
