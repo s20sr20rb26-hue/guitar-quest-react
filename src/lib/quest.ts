@@ -22,6 +22,7 @@ export interface PracticeTarget {
   songName: string;
   artist: string;
   externalSongId?: string;
+  artworkUrl?: string;
 }
 
 export interface ExternalSong {
