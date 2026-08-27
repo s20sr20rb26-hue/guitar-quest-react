@@ -1,0 +1,28 @@
+{
+  "id": "/guitar-quest-react/",
+  "name": "Guitar Quest - ギター練習クエスト",
+  "short_name": "Guitar Quest",
+  "description": "週1曲でライブに近づくギター練習アプリ",
+  "lang": "ja",
+  "start_url": "/guitar-quest-react/",
+  "scope": "/guitar-quest-react/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["music", "education", "productivity"],
+  "icons": [
+    {
+      "src": "/guitar-quest-react/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/guitar-quest-react/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
