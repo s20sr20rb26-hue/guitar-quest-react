@@ -14,6 +14,14 @@ export interface PracticeSession {
   memo: string;
   rating: number;
   focus?: string;
+  externalSongId?: string;
+}
+
+export interface PracticeTarget {
+  songNo: number;
+  songName: string;
+  artist: string;
+  externalSongId?: string;
 }
 
 export interface ExternalSong {
