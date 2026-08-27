@@ -74,6 +74,7 @@ interface LiveTabProps {
   onAddExternalSong: (title: string, artist: string, url: string, artworkUrl?: string, album?: string) => void;
   onRemoveExternalSong: (id: string) => void;
   onLogSession: (song: Song) => void;
+  onLogExternalSession: (song: ExternalSong) => void;
 }
 
 export function LiveTab({
@@ -86,6 +87,7 @@ export function LiveTab({
   onAddExternalSong,
   onRemoveExternalSong,
   onLogSession,
+  onLogExternalSession,
 }: LiveTabProps) {
   const [songNo, setSongNo] = useState('');
   const [externalTitle, setExternalTitle] = useState('');
@@ -108,8 +110,13 @@ export function LiveTab({
   }, [livePlan.date]);
 
   const totalSongs = liveSongs.length + livePlan.externalSongs.length;
+  const externalSongIds = new Set(livePlan.externalSongs.map((song) => song.id));
   const totalMinutes = sessions
-    .filter((session) => livePlan.songNos.includes(session.songNo))
+    .filter(
+      (session) =>
+        livePlan.songNos.includes(session.songNo) ||
+        Boolean(session.externalSongId && externalSongIds.has(session.externalSongId))
+    )
     .reduce((sum, session) => sum + session.durationMin, 0);
 
   const addSelectedSong = () => {
@@ -204,7 +211,7 @@ export function LiveTab({
 
         {totalSongs > 0 && (
           <>
-            <div className="hidden grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] items-center gap-3 border-b border-zinc-800 px-2 pb-2 text-xs font-bold text-zinc-500 sm:grid">
+            <div className="hidden grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] items-center gap-3 border-b border-zinc-800 px-2 pb-2 text-xs font-bold text-zinc-500 sm:grid">
               <span className="text-center">#</span>
               <span>タイトル</span>
               <span>練習</span>
@@ -216,7 +223,7 @@ export function LiveTab({
                 const songSessions = sessions.filter((session) => session.songNo === song.No);
                 const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
                 return (
-                  <div key={song.No} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] sm:gap-3 sm:px-2">
+                  <div key={song.No} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] sm:gap-3 sm:px-2">
                     <span className="hidden text-center text-sm text-zinc-500 sm:block">{index + 1}</span>
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400 shadow-sm">
@@ -247,39 +254,49 @@ export function LiveTab({
                 );
               })}
 
-              {livePlan.externalSongs.map((song: ExternalSong, index) => (
-                <div key={song.id} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] sm:gap-3 sm:px-2">
-                  <span className="hidden text-center text-sm text-zinc-500 sm:block">{liveSongs.length + index + 1}</span>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400 shadow-sm" title="曲を開く">
-                      {song.artworkUrl ? (
-                        <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <Music2 className="h-5 w-5" />
-                      )}
-                    </a>
-                    <div className="min-w-0">
-                      <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
-                        {song.title}
+              {livePlan.externalSongs.map((song: ExternalSong, index) => {
+                const songSessions = sessions.filter((session) => session.externalSongId === song.id);
+                const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
+                return (
+                  <div key={song.id} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_9rem] sm:gap-3 sm:px-2">
+                    <span className="hidden text-center text-sm text-zinc-500 sm:block">{liveSongs.length + index + 1}</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400 shadow-sm" title="曲を開く">
+                        {song.artworkUrl ? (
+                          <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <Music2 className="h-5 w-5" />
+                        )}
                       </a>
-                      <p className="truncate text-sm text-zinc-500">
-                        {song.artist || '未設定'}{song.album ? ` ・ ${song.album}` : ''}
-                        <span className="sm:hidden"> ・ {song.service}</span>
-                      </p>
+                      <div className="min-w-0">
+                        <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
+                          {song.title}
+                        </a>
+                        <p className="truncate text-sm text-zinc-500">
+                          {song.artist || '未設定'}{song.album ? ` ・ ${song.album}` : ''}
+                          <span className="sm:hidden"> ・ {songSessions.length}回 ・ {minutes}分</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden text-sm sm:block">
+                      <p className="font-bold text-zinc-300">{songSessions.length}回</p>
+                      <p className="text-xs text-zinc-600">{minutes}分</p>
+                    </div>
+                    <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">{song.service}</span>
+                    <div className="flex shrink-0 items-center justify-end gap-1">
+                      <button onClick={() => onLogExternalSession(song)} className="min-h-10 rounded-full bg-emerald-500 px-3 text-xs font-black text-black hover:bg-emerald-400" aria-label={`${song.title}の練習を記録`}>
+                        記録
+                      </button>
+                      <a href={song.url} target="_blank" rel="noopener noreferrer" className="hidden h-10 w-10 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800 hover:text-white sm:flex" title="曲を開く">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                      <button onClick={() => onRemoveExternalSong(song.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="hidden text-sm text-zinc-600 sm:block">外部曲</div>
-                  <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">{song.service}</span>
-                  <div className="flex shrink-0 items-center justify-end gap-1">
-                    <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800 hover:text-white" title="曲を開く">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                    <button onClick={() => onRemoveExternalSong(song.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
