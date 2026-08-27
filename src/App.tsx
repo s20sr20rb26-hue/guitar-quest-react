@@ -7,6 +7,7 @@ import {
   saveState,
   getAcquiredSkills,
   getServiceFromUrl,
+  createLivePlan,
   DEFAULT_SKILL_LEVELS,
   type QuestState,
   type PracticeSession,
@@ -28,6 +29,9 @@ function App() {
   const [state, setState] = useState<QuestState>(() => loadState());
   const [tab, setTab] = useState<AppTab>('quest');
   const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
+  const activeLivePlan = state.livePlans.find(
+    (plan) => plan.id === state.activeLivePlanId && !plan.archivedAt
+  ) ?? null;
 
   useEffect(() => {
     saveState(state);
@@ -72,50 +76,116 @@ function App() {
     setState((prev) => ({ ...prev, weeklySongNo: songNo, weekStartedAt: new Date().toISOString() }));
   }, []);
 
-  const updateLivePlan = useCallback((patch: Partial<LivePlan>) => {
-    setState((prev) => ({ ...prev, livePlan: { ...prev.livePlan, ...patch } }));
+  const selectLivePlan = useCallback((id: string) => {
+    setState((prev) => {
+      const plan = prev.livePlans.find((item) => item.id === id && !item.archivedAt);
+      return plan ? { ...prev, activeLivePlanId: id } : prev;
+    });
   }, []);
 
-  const addLiveSong = useCallback((songNo: number) => {
+  const addLivePlan = useCallback((title: string, date: string) => {
+    const livePlan = createLivePlan(title, date);
+    setState((prev) => ({
+      ...prev,
+      livePlans: [livePlan, ...prev.livePlans],
+      activeLivePlanId: livePlan.id,
+    }));
+  }, []);
+
+  const updateLivePlan = useCallback((patch: Partial<LivePlan>) => {
     setState((prev) => {
-      if (prev.livePlan.songNos.includes(songNo)) return prev;
-      return { ...prev, livePlan: { ...prev.livePlan, songNos: [...prev.livePlan.songNos, songNo] } };
+      if (!prev.activeLivePlanId) return prev;
+      return {
+        ...prev,
+        livePlans: prev.livePlans.map((plan) =>
+          plan.id === prev.activeLivePlanId ? { ...plan, ...patch } : plan
+        ),
+      };
+    });
+  }, []);
+
+  const archiveLivePlan = useCallback((id: string) => {
+    setState((prev) => {
+      const archivedAt = new Date().toISOString();
+      const livePlans = prev.livePlans.map((plan) =>
+        plan.id === id ? { ...plan, archivedAt } : plan
+      );
+      const nextLive = livePlans.find((plan) => !plan.archivedAt && plan.id !== id);
+      return {
+        ...prev,
+        livePlans,
+        activeLivePlanId: prev.activeLivePlanId === id ? nextLive?.id ?? null : prev.activeLivePlanId,
+      };
+    });
+  }, []);
+
+  const restoreLivePlan = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      livePlans: prev.livePlans.map((plan) =>
+        plan.id === id ? { ...plan, archivedAt: undefined } : plan
+      ),
+      activeLivePlanId: id,
+    }));
+  }, []);
+
+  const deleteLivePlan = useCallback((id: string) => {
+    setState((prev) => {
+      const target = prev.livePlans.find((plan) => plan.id === id);
+      if (!target?.archivedAt) return prev;
+      return { ...prev, livePlans: prev.livePlans.filter((plan) => plan.id !== id) };
     });
   }, []);
 
   const removeLiveSong = useCallback((songNo: number) => {
-    setState((prev) => ({
-      ...prev,
-      livePlan: { ...prev.livePlan, songNos: prev.livePlan.songNos.filter((no) => no !== songNo) },
-    }));
+    setState((prev) => {
+      if (!prev.activeLivePlanId) return prev;
+      return {
+        ...prev,
+        livePlans: prev.livePlans.map((plan) =>
+          plan.id === prev.activeLivePlanId
+            ? { ...plan, songNos: plan.songNos.filter((no) => no !== songNo) }
+            : plan
+        ),
+      };
+    });
   }, []);
 
   const addExternalSong = useCallback((title: string, artist: string, url: string, artworkUrl?: string, album?: string) => {
-    setState((prev) => ({
-      ...prev,
-      livePlan: {
-        ...prev.livePlan,
-        externalSongs: [
-          ...prev.livePlan.externalSongs,
-          {
-            id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
-            title,
-            artist,
-            url,
-            service: getServiceFromUrl(url),
-            artworkUrl,
-            album,
-          },
-        ],
-      },
-    }));
+    setState((prev) => {
+      if (!prev.activeLivePlanId) return prev;
+      const externalSong: ExternalSong = {
+        id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+        title,
+        artist,
+        url,
+        service: getServiceFromUrl(url),
+        artworkUrl,
+        album,
+      };
+      return {
+        ...prev,
+        livePlans: prev.livePlans.map((plan) =>
+          plan.id === prev.activeLivePlanId
+            ? { ...plan, externalSongs: [...plan.externalSongs, externalSong] }
+            : plan
+        ),
+      };
+    });
   }, []);
 
   const removeExternalSong = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      livePlan: { ...prev.livePlan, externalSongs: prev.livePlan.externalSongs.filter((song) => song.id !== id) },
-    }));
+    setState((prev) => {
+      if (!prev.activeLivePlanId) return prev;
+      return {
+        ...prev,
+        livePlans: prev.livePlans.map((plan) =>
+          plan.id === prev.activeLivePlanId
+            ? { ...plan, externalSongs: plan.externalSongs.filter((song) => song.id !== id) }
+            : plan
+        ),
+      };
+    });
   }, []);
 
   const logSession = useCallback((song: Song) => {
@@ -238,10 +308,15 @@ function App() {
           {tab === 'live' && (
             <LiveTab
               songs={SONGS}
-              livePlan={state.livePlan}
+              livePlans={state.livePlans}
+              activeLivePlan={activeLivePlan}
               sessions={state.sessions}
+              onSelectLivePlan={selectLivePlan}
+              onCreateLivePlan={addLivePlan}
               onUpdateLivePlan={updateLivePlan}
-              onAddLiveSong={addLiveSong}
+              onArchiveLivePlan={archiveLivePlan}
+              onRestoreLivePlan={restoreLivePlan}
+              onDeleteLivePlan={deleteLivePlan}
               onRemoveLiveSong={removeLiveSong}
               onAddExternalSong={addExternalSong}
               onRemoveExternalSong={removeExternalSong}
