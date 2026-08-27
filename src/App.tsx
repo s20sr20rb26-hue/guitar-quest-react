@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Guitar, Compass, Library, History, Sparkles, Gauge } from 'lucide-react';
+import { CalendarDays, Guitar, History, Home, Library, Sparkles } from 'lucide-react';
 import type { Song, AppTab } from '@/types';
 import { INITIAL_SONGS } from '@/data/songs';
 import {
   loadState,
   saveState,
   getAcquiredSkills,
+  getServiceFromUrl,
   DEFAULT_SKILL_LEVELS,
   type QuestState,
   type PracticeSession,
+  type LivePlan,
 } from '@/lib/quest';
 import { StatsBar } from '@/components/StatsBar';
 import { QuestTab } from '@/components/QuestTab';
@@ -16,6 +18,7 @@ import { CoursesTab } from '@/components/CoursesTab';
 import { HistoryTab } from '@/components/HistoryTab';
 import { LogSessionModal } from '@/components/LogSessionModal';
 import { SkillsTab } from '@/components/SkillsTab';
+import { LiveTab } from '@/components/LiveTab';
 
 const SONGS: Song[] = INITIAL_SONGS;
 
@@ -53,16 +56,71 @@ function App() {
     setState((prev) => ({ ...prev, currentGoal: goal }));
   }, []);
 
-  const logSession = useCallback(
-    (song: Song) => setLogTarget(song),
-    []
-  );
+  const setFavoriteRoutes = useCallback((routes: string[]) => {
+    setState((prev) => ({
+      ...prev,
+      favoriteRoutes: routes,
+      currentGoal: routes[0] ?? prev.currentGoal,
+      weeklySongNo: null,
+      weekStartedAt: null,
+    }));
+  }, []);
+
+  const setWeeklySong = useCallback((songNo: number) => {
+    setState((prev) => ({ ...prev, weeklySongNo: songNo, weekStartedAt: new Date().toISOString() }));
+  }, []);
+
+  const updateLivePlan = useCallback((patch: Partial<LivePlan>) => {
+    setState((prev) => ({ ...prev, livePlan: { ...prev.livePlan, ...patch } }));
+  }, []);
+
+  const addLiveSong = useCallback((songNo: number) => {
+    setState((prev) => {
+      if (prev.livePlan.songNos.includes(songNo)) return prev;
+      return { ...prev, livePlan: { ...prev.livePlan, songNos: [...prev.livePlan.songNos, songNo] } };
+    });
+  }, []);
+
+  const removeLiveSong = useCallback((songNo: number) => {
+    setState((prev) => ({
+      ...prev,
+      livePlan: { ...prev.livePlan, songNos: prev.livePlan.songNos.filter((no) => no !== songNo) },
+    }));
+  }, []);
+
+  const addExternalSong = useCallback((title: string, artist: string, url: string) => {
+    setState((prev) => ({
+      ...prev,
+      livePlan: {
+        ...prev.livePlan,
+        externalSongs: [
+          ...prev.livePlan.externalSongs,
+          {
+            id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+            title,
+            artist,
+            url,
+            service: getServiceFromUrl(url),
+          },
+        ],
+      },
+    }));
+  }, []);
+
+  const removeExternalSong = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      livePlan: { ...prev.livePlan, externalSongs: prev.livePlan.externalSongs.filter((song) => song.id !== id) },
+    }));
+  }, []);
+
+  const logSession = useCallback((song: Song) => setLogTarget(song), []);
 
   const saveSession = useCallback(
     (durationMin: number, memo: string, rating: number) => {
       if (!logTarget) return;
       const session: PracticeSession = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
         date: new Date().toISOString(),
         songNo: logTarget.No,
         songName: logTarget.曲名,
@@ -94,52 +152,40 @@ function App() {
     setState((prev) => ({ ...prev, skillLevels: { ...DEFAULT_SKILL_LEVELS } }));
   }, []);
 
-  const tabs: { key: AppTab; label: string; icon: typeof Compass }[] = [
-    { key: 'quest', label: 'クエスト', icon: Compass },
-    { key: 'courses', label: '曲リスト', icon: Library },
-    { key: 'skills', label: 'スキル', icon: Gauge },
-    { key: 'history', label: '履歴', icon: History },
+  const tabs: { key: AppTab; label: string; icon: typeof Home }[] = [
+    { key: 'quest', label: 'ホーム', icon: Home },
+    { key: 'courses', label: '曲', icon: Library },
+    { key: 'live', label: 'ライブ', icon: CalendarDays },
+    { key: 'history', label: '記録', icon: History },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
-      <div className="pointer-events-none fixed inset-0 opacity-30">
-        <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-amber-600/10 blur-3xl" />
-        <div className="absolute right-1/4 top-1/3 h-96 w-96 rounded-full bg-emerald-600/10 blur-3xl" />
-      </div>
-
+    <div className="min-h-screen bg-black text-zinc-100">
       <div className="relative">
-        <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-slate-950/80 pt-safe backdrop-blur-lg">
-          <div className="mx-auto max-w-5xl px-4 py-2.5 sm:px-6 sm:py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-900/30">
-                  <Guitar className="h-5 w-5 text-white" />
+        <header className="sticky top-0 z-40 border-b border-zinc-900 bg-black/90 pt-safe backdrop-blur-xl">
+          <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-black shadow-lg shadow-emerald-950/30">
+                  <Guitar className="h-6 w-6" />
                 </div>
-                <div>
-                  <h1 className="text-base font-bold leading-tight text-slate-100 sm:text-lg">
-                    Guitar Quest
-                  </h1>
-                  <p className="hidden text-[10px] text-slate-500 sm:block sm:text-xs">ギター練習クエスト</p>
+                <div className="min-w-0">
+                  <h1 className="truncate text-xl font-black leading-tight text-white">Guitar Quest</h1>
+                  <p className="truncate text-sm font-medium text-zinc-500">週1曲でライブに近づく練習アプリ</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500/70" />
-                <span className="font-semibold text-slate-400">{state.completedSongNos.length}</span>
-                <span className="text-slate-600">/ {SONGS.length}</span>
+              <div className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-2 text-sm text-zinc-400">
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                <span className="font-black text-white">{state.completedSongNos.length}</span>
+                <span>/ {SONGS.length}</span>
               </div>
             </div>
-
-            <nav className="mt-2 hidden gap-1 sm:flex">
+            <nav className="mt-3 hidden gap-2 sm:flex">
               {tabs.map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    tab === t.key
-                      ? 'bg-amber-600/20 text-amber-400'
-                      : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-300'
-                  }`}
+                  className={(tab === t.key ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white') + ' flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-black transition-colors'}
                 >
                   <t.icon className="h-4 w-4" />
                   {t.label}
@@ -149,7 +195,7 @@ function App() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-5xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-8">
+        <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-10">
           <div className="mb-4 sm:mb-5">
             <StatsBar songs={SONGS} state={state} />
           </div>
@@ -161,57 +207,51 @@ function App() {
               onToggleComplete={toggleComplete}
               onLogSession={logSession}
               onSetGoal={setGoal}
+              onSetFavoriteRoutes={setFavoriteRoutes}
+              onSetWeeklySong={setWeeklySong}
             />
           )}
           {tab === 'courses' && (
-            <CoursesTab
-              songs={SONGS}
-              state={state}
-              onToggleComplete={toggleComplete}
+            <CoursesTab songs={SONGS} state={state} onToggleComplete={toggleComplete} onLogSession={logSession} />
+          )}
+          {tab === 'live' && (
+            <LiveTab
+              songs={SONS_FIX}
+              livePlan={state.livePlan}
+              sessions={state.sessions}
+              onUpdateLivePlan={updateLivePlan}
+              onAddLiveSong={addLiveSong}
+              onRemoveLiveSong={removeLiveSong}
+              onAddExternalSong={addExternalSong}
+              onRemoveExternalSong={removeExternalSong}
               onLogSession={logSession}
             />
           )}
-          {tab === 'skills' && (
-            <SkillsTab state={state} onUpdateSkill={updateSkill} onResetAll={resetAllSkills} />
-          )}
-          {tab === 'history' && (
-            <HistoryTab state={state} onDeleteSession={deleteSession} />
-          )}
+          {tab === 'skills' && <SkillsTab state={state} onUpdateSkill={updateSkill} onResetAll={resetAllSkills} />}
+          {tab === 'history' && <HistoryTab state={state} onDeleteSession={deleteSession} />}
         </main>
-
-        <footer className="mx-auto hidden max-w-5xl px-6 pb-8 pt-4 sm:block">
-          <p className="text-center text-xs text-slate-700">
-            Guitar Quest — 練習記録はこの端末に保存されます
-          </p>
-        </footer>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800/80 bg-slate-950/90 pb-safe backdrop-blur-lg sm:hidden">
-        <div className="mx-auto flex max-w-5xl items-stretch justify-around">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
+        <div className="mx-auto grid max-w-6xl grid-cols-4">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
-                tab === t.key ? 'text-amber-400' : 'text-slate-500'
-              }`}
+              className={(tab === t.key ? 'text-emerald-400' : 'text-zinc-500') + ' flex min-h-16 flex-col items-center justify-center gap-1 transition-colors'}
             >
-              <t.icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{t.label}</span>
+              <t.icon className="h-6 w-6" />
+              <span className="text-xs font-black">{t.label}</span>
             </button>
           ))}
         </div>
       </nav>
 
-      {logTarget && (
-        <LogSessionModal
-          song={logTarget}
-          onClose={() => setLogTarget(null)}
-          onSave={saveSession}
-        />
-      )}
+      {logTarget && <LogSessionModal song={logTarget} onClose={() => setLogTarget(null)} onSave={saveSession} />}
     </div>
   );
 }
+
+const SONS_FIX = SONGS;
 
 export default App;
