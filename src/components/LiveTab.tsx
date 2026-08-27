@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { CalendarDays, Link2, ListMusic, LoaderCircle, Music2, Plus, Search, Trash2 } from 'lucide-react';
+import { CalendarDays, ExternalLink, Guitar, Link2, ListMusic, LoaderCircle, Music2, Plus, Search, Trash2 } from 'lucide-react';
 import type { Song } from '@/types';
 import type { ExternalSong, LivePlan, PracticeSession } from '@/lib/quest';
 
@@ -10,6 +10,7 @@ interface ItunesTrack {
   collectionName: string;
   trackViewUrl: string;
   kind: string;
+  artworkUrl100?: string;
 }
 
 interface ItunesSearchResponse {
@@ -70,7 +71,7 @@ interface LiveTabProps {
   onUpdateLivePlan: (patch: Partial<LivePlan>) => void;
   onAddLiveSong: (songNo: number) => void;
   onRemoveLiveSong: (songNo: number) => void;
-  onAddExternalSong: (title: string, artist: string, url: string) => void;
+  onAddExternalSong: (title: string, artist: string, url: string, artworkUrl?: string, album?: string) => void;
   onRemoveExternalSong: (id: string) => void;
   onLogSession: (song: Song) => void;
 }
@@ -146,7 +147,7 @@ export function LiveTab({
   };
 
   const addItunesTrack = (track: ItunesTrack) => {
-    onAddExternalSong(track.trackName, track.artistName, track.trackViewUrl);
+    onAddExternalSong(track.trackName, track.artistName, track.trackViewUrl, track.artworkUrl100, track.collectionName);
   };
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
@@ -217,9 +218,13 @@ export function LiveTab({
               const isAdded = livePlan.externalSongs.some((song) => song.url === track.trackViewUrl);
               return (
                 <div key={track.trackId} className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 bg-zinc-950 px-3 py-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-emerald-400">
-                    <Music2 className="h-5 w-5" />
-                  </div>
+                  <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="Apple Musicで開く">
+                    {track.artworkUrl100 ? (
+                      <img src={track.artworkUrl100} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <Music2 className="h-5 w-5" />
+                    )}
+                  </a>
                   <div className="min-w-0">
                     <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
                       {track.trackName}
@@ -272,51 +277,102 @@ export function LiveTab({
         </button>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-          <Music2 className="h-5 w-5 text-emerald-400" />
-          練習プレイリスト
-        </h2>
+      <section className="min-w-0 overflow-hidden">
+        <div className="mb-3 flex items-end justify-between gap-3 px-1">
+          <div>
+            <p className="text-xs font-bold uppercase text-emerald-400">Setlist</p>
+            <h2 className="mt-1 text-2xl font-black text-white">練習プレイリスト</h2>
+          </div>
+          <span className="shrink-0 text-sm font-bold text-zinc-500">{totalSongs}曲</span>
+        </div>
+
         {totalSongs === 0 && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-8 text-center text-sm text-zinc-500">
-            ライブで弾く曲を追加すると、曲ごとの練習記録をここで追えます。
+          <div className="border-y border-zinc-900 px-4 py-12 text-center text-base text-zinc-500">
+            ライブで弾く曲を追加すると、ここに並びます。
           </div>
         )}
-        {liveSongs.map((song, index) => {
-          const songSessions = sessions.filter((session) => session.songNo === song.No);
-          const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
-          return (
-            <div key={song.No} className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-3 hover:bg-zinc-900 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:gap-3 sm:px-2">
-              <span className="text-sm text-zinc-500">{index + 1}</span>
-              <div className="min-w-0">
-                <p className="truncate text-base font-bold text-white">{song.曲名}</p>
-                <p className="truncate text-sm text-zinc-500">{song.アーティスト} ・ {songSessions.length}回 ・ {minutes}分</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button onClick={() => onLogSession(song)} className="rounded-full bg-emerald-500 px-3 py-2 text-xs font-black text-black hover:bg-emerald-400">
-                  記録
-                </button>
-                <button onClick={() => onRemoveLiveSong(song.No)} className="rounded-full p-2 text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+
+        {totalSongs > 0 && (
+          <>
+            <div className="hidden grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] items-center gap-3 border-b border-zinc-800 px-2 pb-2 text-xs font-bold text-zinc-500 sm:grid">
+              <span className="text-center">#</span>
+              <span>タイトル</span>
+              <span>練習</span>
+              <span>ソース</span>
+              <span />
             </div>
-          );
-        })}
-        {livePlan.externalSongs.map((song: ExternalSong, index) => (
-          <div key={song.id} className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-3 hover:bg-zinc-900 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:gap-3 sm:px-2">
-            <span className="text-sm text-zinc-500">{liveSongs.length + index + 1}</span>
-            <div className="min-w-0">
-              <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
-                {song.title}
-              </a>
-              <p className="truncate text-sm text-zinc-500">{song.artist || '未設定'} ・ {song.service}</p>
+            <div className="divide-y divide-zinc-900">
+              {liveSongs.map((song, index) => {
+                const songSessions = sessions.filter((session) => session.songNo === song.No);
+                const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
+                return (
+                  <div key={song.No} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] sm:gap-3 sm:px-2">
+                    <span className="hidden text-center text-sm text-zinc-500 sm:block">{index + 1}</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400 shadow-sm">
+                        <Guitar className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-bold text-white">{song.曲名}</p>
+                        <p className="truncate text-sm text-zinc-500">
+                          {song.アーティスト}
+                          <span className="sm:hidden"> ・ {songSessions.length}回 ・ {minutes}分</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden text-sm sm:block">
+                      <p className="font-bold text-zinc-300">{songSessions.length}回</p>
+                      <p className="text-xs text-zinc-600">{minutes}分</p>
+                    </div>
+                    <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">曲DB</span>
+                    <div className="flex shrink-0 items-center justify-end gap-1">
+                      <button onClick={() => onLogSession(song)} className="min-h-10 rounded-full bg-emerald-500 px-3 text-xs font-black text-black hover:bg-emerald-400">
+                        記録
+                      </button>
+                      <button onClick={() => onRemoveLiveSong(song.No)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {livePlan.externalSongs.map((song: ExternalSong, index) => (
+                <div key={song.id} className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-2 hover:bg-zinc-900/80 sm:grid-cols-[2rem_minmax(0,1fr)_7rem_8rem_5.5rem] sm:gap-3 sm:px-2">
+                  <span className="hidden text-center text-sm text-zinc-500 sm:block">{liveSongs.length + index + 1}</span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400 shadow-sm" title="曲を開く">
+                      {song.artworkUrl ? (
+                        <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <Music2 className="h-5 w-5" />
+                      )}
+                    </a>
+                    <div className="min-w-0">
+                      <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
+                        {song.title}
+                      </a>
+                      <p className="truncate text-sm text-zinc-500">
+                        {song.artist || '未設定'}{song.album ? ` ・ ${song.album}` : ''}
+                        <span className="sm:hidden"> ・ {song.service}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden text-sm text-zinc-600 sm:block">外部曲</div>
+                  <span className="hidden w-fit rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-bold text-zinc-400 sm:inline-flex">{song.service}</span>
+                  <div className="flex shrink-0 items-center justify-end gap-1">
+                    <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800 hover:text-white" title="曲を開く">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <button onClick={() => onRemoveExternalSong(song.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <button onClick={() => onRemoveExternalSong(song.id)} className="rounded-full p-2 text-zinc-500 hover:bg-red-950/50 hover:text-red-300" title="削除">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+          </>
+        )}
       </section>
     </div>
   );
