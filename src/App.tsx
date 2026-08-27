@@ -216,7 +216,7 @@ function App() {
           )}
           {tab === 'live' && (
             <LiveTab
-              songs={SONS}
+              songs={SONGS}
               livePlan={state.livePlan}
               sessions={state.sessions}
               onUpdateLivePlan={updateLivePlan}
