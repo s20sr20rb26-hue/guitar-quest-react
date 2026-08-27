@@ -333,14 +333,6 @@ export function LiveTab({
           </section>
 
           <section className="min-w-0 overflow-hidden">
-            <div className="mb-3 flex items-end justify-between gap-3 px-1">
-              <div>
-                <p className="text-xs font-bold uppercase text-emerald-400">Setlist</p>
-                <h2 className="mt-1 text-2xl font-black text-white">練習プレイリスト</h2>
-              </div>
-              <span className="shrink-0 text-sm font-bold text-zinc-500">{totalSongs}曲</span>
-            </div>
-
             {totalSongs === 0 && (
               <div className="border-y border-zinc-900 px-4 py-12 text-center text-base text-zinc-500">
                 「プレイリストを編集・追加」から曲を登録できます。
