@@ -1,106 +1,166 @@
-import { X, Clock, Star, MessageSquare } from 'lucide-react';
+import { CalendarDays, Clock3, Guitar, MessageSquare, Minus, Plus, Star, Target, X } from 'lucide-react';
 import { useState } from 'react';
 import type { Song } from '@/types';
 
 interface LogSessionModalProps {
   song: Song;
   onClose: () => void;
-  onSave: (durationMin: number, memo: string, rating: number) => void;
+  onSave: (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => void;
+}
+
+const FOCUS_OPTIONS = ['通し練習', '苦手部分', 'リフ', 'コード', 'ソロ', 'テンポ'];
+
+function localDateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps) {
-  const [duration, setDuration] = useState(15);
+  const today = localDateValue(new Date());
+  const [duration, setDuration] = useState(30);
   const [memo, setMemo] = useState('');
   const [rating, setRating] = useState(3);
+  const [focus, setFocus] = useState('通し練習');
+  const [practiceDate, setPracticeDate] = useState(today);
+
+  const adjustDuration = (amount: number) => {
+    setDuration((current) => Math.min(600, Math.max(5, current + amount)));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-2xl border-t border-slate-700 bg-slate-900 p-5 pb-safe shadow-2xl sm:rounded-2xl sm:border sm:border-slate-700 sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-100">練習記録</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave(duration, memo.trim(), rating, focus, practiceDate);
+        }}
+        className="relative max-h-[94vh] max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 pb-safe shadow-2xl sm:rounded-lg sm:border"
+      >
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
+          <div>
+            <p className="text-xs font-bold uppercase text-emerald-400">Practice log</p>
+            <h2 className="text-lg font-black text-white">練習を記録</h2>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-white" aria-label="閉じる">
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
 
-        <div className="mb-4">
-          <p className="text-sm font-semibold text-slate-200">{song.曲名}</p>
-          <p className="text-xs text-slate-500">{song.アーティスト}</p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-              <Clock className="h-3.5 w-3.5" /> 練習時間（分）
-            </label>
-            <div className="flex gap-2 overflow-x-auto scrollbar-none">
-              {[10, 15, 30, 45, 60].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setDuration(m)}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    duration === m
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
-                >
-                  {m}分
-                </button>
-              ))}
+        <div className="space-y-6 px-4 py-5 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400">
+              <Guitar className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black text-white">{song.曲名}</p>
+              <p className="truncate text-sm text-zinc-500">{song.アーティスト}</p>
             </div>
           </div>
 
-          <div>
-            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-              <Star className="h-3.5 w-3.5" /> 手応え
-            </label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((r) => (
+          <section>
+            <div className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-300">
+              <Clock3 className="h-4 w-4 text-emerald-400" />
+              練習時間
+            </div>
+            <div className="flex items-center justify-center gap-5 border-y border-zinc-800 py-5">
+              <button type="button" onClick={() => adjustDuration(-5)} className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-zinc-300 hover:bg-zinc-800" aria-label="5分減らす">
+                <Minus className="h-5 w-5" />
+              </button>
+              <div className="min-w-28 text-center">
+                <span className="text-5xl font-black tabular-nums text-white">{duration}</span>
+                <span className="ml-1 text-sm font-bold text-zinc-500">分</span>
+              </div>
+              <button type="button" onClick={() => adjustDuration(5)} className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-zinc-300 hover:bg-zinc-800" aria-label="5分増やす">
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-4 overflow-hidden rounded-lg border border-zinc-800">
+              {[15, 30, 45, 60].map((minutes) => (
                 <button
-                  key={r}
-                  onClick={() => setRating(r)}
-                  className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition-colors ${
-                    rating === r
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
+                  key={minutes}
+                  type="button"
+                  onClick={() => setDuration(minutes)}
+                  className={`min-h-10 border-l border-zinc-800 text-sm font-bold first:border-l-0 ${duration === minutes ? 'bg-emerald-500 text-black' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
                 >
-                  {r}
+                  {minutes}分
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div>
-            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-              <MessageSquare className="h-3.5 w-3.5" /> メモ
+          <section className="grid gap-4 sm:grid-cols-2">
+            <label className="min-w-0">
+              <span className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-300">
+                <CalendarDays className="h-4 w-4 text-cyan-400" />
+                練習日
+              </span>
+              <input
+                type="date"
+                value={practiceDate}
+                max={today}
+                onChange={(event) => setPracticeDate(event.target.value)}
+                required
+                className="min-h-12 w-full min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-white outline-none focus:border-emerald-500"
+              />
             </label>
+            <div>
+              <p className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-300">
+                <Star className="h-4 w-4 text-amber-400" />
+                手応え
+              </p>
+              <div className="flex min-h-12 items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 px-3">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button key={value} type="button" onClick={() => setRating(value)} className={`flex h-9 w-9 items-center justify-center rounded-full ${value <= rating ? 'text-amber-400' : 'text-zinc-700'}`} aria-label={`手応え${value}`}>
+                    <Star className={`h-5 w-5 ${value <= rating ? 'fill-current' : ''}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <p className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-300">
+              <Target className="h-4 w-4 text-cyan-400" />
+              練習内容
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {FOCUS_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setFocus(option)}
+                  className={`min-h-11 rounded-lg border px-2 text-sm font-bold ${focus === option ? 'border-cyan-400 bg-cyan-950 text-cyan-200' : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700'}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-300">
+              <MessageSquare className="h-4 w-4 text-emerald-400" />
+              メモ
+            </span>
             <textarea
               value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="今日の気づき、できたこと、課題..."
-              className="w-full resize-none rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-amber-600 focus:outline-none"
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="できたこと、次に直したいこと"
               rows={3}
+              className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-3 text-base text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500"
             />
-          </div>
+          </label>
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-slate-400 transition-colors hover:bg-slate-700"
-          >
-            キャンセル
+        <footer className="sticky bottom-0 border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
+          <button type="submit" className="min-h-12 w-full rounded-full bg-emerald-500 px-5 text-base font-black text-black hover:bg-emerald-400">
+            {duration}分を記録する
           </button>
-          <button
-            onClick={() => onSave(duration, memo, rating)}
-            className="flex-1 rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
-          >
-            記録する
-          </button>
-        </div>
-      </div>
+        </footer>
+      </form>
     </div>
   );
 }
