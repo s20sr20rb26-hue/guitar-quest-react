@@ -187,96 +187,6 @@ export function LiveTab({
         )}
       </section>
 
-      <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
-        <div className="mb-3 flex items-center gap-2">
-          <Search className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-lg font-bold text-white">iTunesで曲を検索</h2>
-        </div>
-        <form onSubmit={searchItunes} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <input
-            value={itunesQuery}
-            onChange={(event) => setItunesQuery(event.target.value)}
-            placeholder="曲名・アーティスト"
-            autoComplete="off"
-            className="min-h-12 w-full min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-          />
-          <button
-            type="submit"
-            disabled={!itunesQuery.trim() || itunesLoading}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-black text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
-          >
-            {itunesLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            検索
-          </button>
-        </form>
-
-        {itunesError && <p className="mt-3 text-sm text-amber-300" role="status">{itunesError}</p>}
-
-        {itunesResults.length > 0 && (
-          <div className="mt-4 divide-y divide-zinc-800 overflow-hidden rounded-lg border border-zinc-800">
-            {itunesResults.map((track) => {
-              const isAdded = livePlan.externalSongs.some((song) => song.url === track.trackViewUrl);
-              return (
-                <div key={track.trackId} className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 bg-zinc-950 px-3 py-3">
-                  <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="Apple Musicで開く">
-                    {track.artworkUrl100 ? (
-                      <img src={track.artworkUrl100} alt="" className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                      <Music2 className="h-5 w-5" />
-                    )}
-                  </a>
-                  <div className="min-w-0">
-                    <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
-                      {track.trackName}
-                    </a>
-                    <p className="truncate text-sm text-zinc-500">{track.artistName} ・ {track.collectionName}</p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={isAdded}
-                    onClick={() => addItunesTrack(track)}
-                    className="flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-full bg-zinc-100 px-3 text-xs font-black text-black hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
-                    aria-label={`${track.trackName}を追加`}
-                  >
-                    {isAdded ? '追加済み' : <><Plus className="h-4 w-4" /><span className="hidden sm:inline">追加</span></>}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-      <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
-        <div className="mb-3 flex items-center gap-2">
-          <Plus className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-lg font-bold text-white">セットリストに追加</h2>
-        </div>
-        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <select
-            value={songNo}
-            onChange={(event) => setSongNo(event.target.value)}
-            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500"
-          >
-            <option value="">曲データベースから選ぶ</option>
-            {songs.map((song) => (
-              <option key={song.No} value={song.No}>{song.曲名} - {song.アーティスト}</option>
-            ))}
-          </select>
-          <button onClick={addSelectedSong} className="min-h-11 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400">
-            追加
-          </button>
-        </div>
-        <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-3">
-          <input value={externalTitle} onChange={(event) => setExternalTitle(event.target.value)} placeholder="外部曲名" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
-          <input value={externalArtist} onChange={(event) => setExternalArtist(event.target.value)} placeholder="アーティスト" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
-          <input value={externalUrl} onChange={(event) => setExternalUrl(event.target.value)} placeholder="Spotify / YouTube Music / Apple Music URL" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
-        </div>
-        <button onClick={addExternal} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white sm:w-auto">
-          <Link2 className="h-4 w-4" />
-          外部URLから追加
-        </button>
-      </section>
-
       <section className="min-w-0 overflow-hidden">
         <div className="mb-3 flex items-end justify-between gap-3 px-1">
           <div>
@@ -374,6 +284,97 @@ export function LiveTab({
           </>
         )}
       </section>
+
+      <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
+        <div className="mb-3 flex items-center gap-2">
+          <Search className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-lg font-bold text-white">iTunesで曲を検索</h2>
+        </div>
+        <form onSubmit={searchItunes} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <input
+            value={itunesQuery}
+            onChange={(event) => setItunesQuery(event.target.value)}
+            placeholder="曲名・アーティスト"
+            autoComplete="off"
+            className="min-h-12 w-full min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+          />
+          <button
+            type="submit"
+            disabled={!itunesQuery.trim() || itunesLoading}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-black text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          >
+            {itunesLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            検索
+          </button>
+        </form>
+
+        {itunesError && <p className="mt-3 text-sm text-amber-300" role="status">{itunesError}</p>}
+
+        {itunesResults.length > 0 && (
+          <div className="mt-4 divide-y divide-zinc-800 overflow-hidden rounded-lg border border-zinc-800">
+            {itunesResults.map((track) => {
+              const isAdded = livePlan.externalSongs.some((song) => song.url === track.trackViewUrl);
+              return (
+                <div key={track.trackId} className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 bg-zinc-950 px-3 py-3">
+                  <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="Apple Musicで開く">
+                    {track.artworkUrl100 ? (
+                      <img src={track.artworkUrl100} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <Music2 className="h-5 w-5" />
+                    )}
+                  </a>
+                  <div className="min-w-0">
+                    <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
+                      {track.trackName}
+                    </a>
+                    <p className="truncate text-sm text-zinc-500">{track.artistName} ・ {track.collectionName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isAdded}
+                    onClick={() => addItunesTrack(track)}
+                    className="flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-full bg-zinc-100 px-3 text-xs font-black text-black hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
+                    aria-label={`${track.trackName}を追加`}
+                  >
+                    {isAdded ? '追加済み' : <><Plus className="h-4 w-4" /><span className="hidden sm:inline">追加</span></>}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+      <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
+        <div className="mb-3 flex items-center gap-2">
+          <Plus className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-lg font-bold text-white">セットリストに追加</h2>
+        </div>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <select
+            value={songNo}
+            onChange={(event) => setSongNo(event.target.value)}
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500"
+          >
+            <option value="">曲データベースから選ぶ</option>
+            {songs.map((song) => (
+              <option key={song.No} value={song.No}>{song.曲名} - {song.アーティスト}</option>
+            ))}
+          </select>
+          <button onClick={addSelectedSong} className="min-h-11 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400">
+            追加
+          </button>
+        </div>
+        <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-3">
+          <input value={externalTitle} onChange={(event) => setExternalTitle(event.target.value)} placeholder="外部曲名" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+          <input value={externalArtist} onChange={(event) => setExternalArtist(event.target.value)} placeholder="アーティスト" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+          <input value={externalUrl} onChange={(event) => setExternalUrl(event.target.value)} placeholder="Spotify / YouTube Music / Apple Music URL" className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-100 outline-none focus:border-emerald-500" />
+        </div>
+        <button onClick={addExternal} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white sm:w-auto">
+          <Link2 className="h-4 w-4" />
+          外部URLから追加
+        </button>
+      </section>
+
     </div>
   );
 }
