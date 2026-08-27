@@ -119,16 +119,21 @@ function App() {
   const logSession = useCallback((song: Song) => setLogTarget(song), []);
 
   const saveSession = useCallback(
-    (durationMin: number, memo: string, rating: number) => {
+    (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => {
       if (!logTarget) return;
+      const now = new Date();
+      const [year, month, day] = practiceDate.split('-').map(Number);
+      const selectedDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes());
+      const recordedAt = Number.isNaN(selectedDate.getTime()) ? now : selectedDate;
       const session: PracticeSession = {
         id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
-        date: new Date().toISOString(),
+        date: recordedAt.toISOString(),
         songNo: logTarget.No,
         songName: logTarget.曲名,
         durationMin,
         memo,
         rating,
+        focus,
       };
       setState((prev) => ({ ...prev, sessions: [session, ...prev.sessions] }));
       setLogTarget(null);
