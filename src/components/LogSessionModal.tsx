@@ -1,9 +1,9 @@
 import { CalendarDays, Clock3, Guitar, MessageSquare, Minus, Plus, Star, Target, X } from 'lucide-react';
 import { useState } from 'react';
-import type { Song } from '@/types';
+import type { PracticeTarget } from '@/lib/quest';
 
 interface LogSessionModalProps {
-  song: Song;
+  song: PracticeTarget;
   onClose: () => void;
   onSave: (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => void;
 }
@@ -55,8 +55,8 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
               <Guitar className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-black text-white">{song.曲名}</p>
-              <p className="truncate text-sm text-zinc-500">{song.アーティスト}</p>
+              <p className="truncate text-lg font-black text-white">{song.songName}</p>
+              <p className="truncate text-sm text-zinc-500">{song.artist}</p>
             </div>
           </div>
 
