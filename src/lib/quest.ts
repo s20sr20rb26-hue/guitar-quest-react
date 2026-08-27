@@ -22,6 +22,8 @@ export interface ExternalSong {
   artist: string;
   url: string;
   service: 'Spotify' | 'YouTube Music' | 'Apple Music' | 'iTunes' | 'URL';
+  artworkUrl?: string;
+  album?: string;
 }
 
 export interface LivePlan {
