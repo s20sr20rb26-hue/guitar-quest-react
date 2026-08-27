@@ -216,7 +216,7 @@ function App() {
           )}
           {tab === 'live' && (
             <LiveTab
-              songs={SONS_FIX}
+              songs={SONS}
               livePlan={state.livePlan}
               sessions={state.sessions}
               onUpdateLivePlan={updateLivePlan}
@@ -251,7 +251,5 @@ function App() {
     </div>
   );
 }
-
-const SONS_FIX = SONGS;
 
 export default App;
