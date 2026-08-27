@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, Download, Guitar, History, Library, MoreVertical, Share2, Sparkles, X } from 'lucide-react';
+import { CalendarDays, Download, Guitar, History, Library, ListMusic, LogOut, MoreVertical, Share2, Sparkles, X } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
 import type { Song, AppTab } from '@/types';
 import { INITIAL_SONGS } from '@/data/songs';
 import {
@@ -22,6 +23,10 @@ import { HistoryTab } from '@/components/HistoryTab';
 import { LogSessionModal } from '@/components/LogSessionModal';
 import { SkillsTab } from '@/components/SkillsTab';
 import { LiveTab } from '@/components/LiveTab';
+import { AuthScreen } from '@/components/AuthScreen';
+import { TimelineTab } from '@/components/TimelineTab';
+import { supabase } from '@/lib/supabase';
+import { createPracticePost, deletePracticePost, getProfile, type Profile } from '@/lib/social';
 
 const SONGS: Song[] = INITIAL_SONGS;
 
@@ -34,8 +39,13 @@ type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 
 function App() {
   const [state, setState] = useState<QuestState>(() => loadState());
-  const [tab, setTab] = useState<AppTab>('quest');
+  const [tab, setTab] = useState<AppTab>('timeline');
   const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
+  const [shareNotice, setShareNotice] = useState('');
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIosDevice, setIsIosDevice] = useState(false);
@@ -48,6 +58,52 @@ function App() {
   }, [state]);
 
   useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setAuthSession(data.session);
+      setAuthLoading(false);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setAuthSession(nextSession);
+      setAuthLoading(false);
+      if (!nextSession) setProfile(null);
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authSession) return;
+    let mounted = true;
+    void getProfile(authSession.user.id)
+      .then((nextProfile) => {
+        if (mounted) setProfile(nextProfile);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setProfile({
+          id: authSession.user.id,
+          username: String(authSession.user.user_metadata.username || authSession.user.email?.split('@')[0] || 'ギタリスト'),
+        });
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [authSession]);
+
+  useEffect(() => {
+    if (!shareNotice) return;
+    const timer = window.setTimeout(() => setShareNotice(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [shareNotice]);
+
+  useEffect(() => {
+    if (!authSession) return;
     const navigatorWithStandalone = navigator as NavigatorWithStandalone;
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true;
     const iosDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -80,7 +136,7 @@ function App() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [authSession]);
 
   const dismissInstallPrompt = useCallback(() => {
     try {
@@ -98,6 +154,11 @@ function App() {
     setInstallPrompt(null);
     dismissInstallPrompt();
   }, [dismissInstallPrompt, installPrompt]);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setTab('timeline');
+  }, []);
 
   const toggleComplete = useCallback((songNo: number) => {
     setState((prev) => {
@@ -260,18 +321,19 @@ function App() {
       songName: song.title,
       artist: song.artist || '未設定',
       externalSongId: song.id,
+      artworkUrl: song.artworkUrl,
     });
   }, []);
 
   const saveSession = useCallback(
     (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => {
-      if (!logTarget) return;
+      if (!logTarget || !authSession) return;
       const now = new Date();
       const [year, month, day] = practiceDate.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes());
       const recordedAt = Number.isNaN(selectedDate.getTime()) ? now : selectedDate;
       const session: PracticeSession = {
-        id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+        id: crypto.randomUUID(),
         date: recordedAt.toISOString(),
         songNo: logTarget.songNo,
         songName: logTarget.songName,
@@ -283,8 +345,28 @@ function App() {
       };
       setState((prev) => ({ ...prev, sessions: [session, ...prev.sessions] }));
       setLogTarget(null);
+
+      void createPracticePost({
+        id: session.id,
+        userId: authSession.user.id,
+        songName: logTarget.songName,
+        artist: logTarget.artist,
+        artworkUrl: logTarget.artworkUrl,
+        durationMin,
+        memo,
+        focus,
+        rating,
+        practicedAt: session.date,
+      })
+        .then(() => {
+          setShareNotice('練習記録をタイムラインに共有しました');
+          setTimelineRefreshToken((value) => value + 1);
+        })
+        .catch(() => {
+          setShareNotice('記録は保存しましたが、タイムラインへの共有に失敗しました');
+        });
     },
-    [logTarget]
+    [authSession, logTarget]
   );
 
   const deleteSession = useCallback((id: string) => {
@@ -292,7 +374,14 @@ function App() {
       ...prev,
       sessions: prev.sessions.filter((s) => s.id !== id),
     }));
-  }, []);
+    if (authSession && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      void deletePracticePost(id, authSession.user.id).then(() => {
+        setTimelineRefreshToken((value) => value + 1);
+      }).catch(() => {
+        setShareNotice('端末の記録は削除しましたが、共有記録の削除に失敗しました');
+      });
+    }
+  }, [authSession]);
 
   const updateSkill = useCallback((skill: string, level: number) => {
     setState((prev) => ({
@@ -306,11 +395,25 @@ function App() {
   }, []);
 
   const tabs: { key: AppTab; label: string; icon: typeof Sparkles }[] = [
+    { key: 'timeline', label: 'タイムライン', icon: ListMusic },
     { key: 'quest', label: 'クエスト', icon: Sparkles },
     { key: 'courses', label: '曲', icon: Library },
     { key: 'live', label: 'ライブ', icon: CalendarDays },
     { key: 'history', label: '記録', icon: History },
   ];
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-sm font-bold text-zinc-500">
+        読み込み中...
+      </div>
+    );
+  }
+
+  if (!authSession) return <AuthScreen />;
+
+  const displayName = profile?.username || String(authSession.user.user_metadata.username || authSession.user.email?.split('@')[0] || 'ギタリスト');
+  const displayInitial = Array.from(displayName.trim())[0]?.toUpperCase() || 'G';
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -327,10 +430,25 @@ function App() {
                   <p className="truncate text-sm font-medium text-zinc-500">週1曲でライブに近づく練習アプリ</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-2 text-sm text-zinc-400">
-                <Sparkles className="h-4 w-4 text-emerald-400" />
-                <span className="font-black text-white">{state.completedSongNos.length}</span>
-                <span>/ {SONGS.length}</span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <div className="hidden items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-2 text-sm text-zinc-400 lg:flex">
+                  <Sparkles className="h-4 w-4 text-emerald-400" />
+                  <span className="font-black text-white">{state.completedSongNos.length}</span>
+                  <span>/ {SONGS.length}</span>
+                </div>
+                <div className="flex min-w-0 items-center gap-2 rounded-full bg-zinc-900 py-1.5 pl-1.5 pr-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-black text-black">{displayInitial}</span>
+                  <span className="hidden max-w-28 truncate text-sm font-black text-white sm:block">{displayName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-white"
+                  aria-label="ログアウト"
+                  title="ログアウト"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
               </div>
             </div>
             <nav className="mt-3 hidden gap-2 sm:flex">
@@ -349,9 +467,18 @@ function App() {
         </header>
 
         <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-10">
-          <div className="mb-4 sm:mb-5">
-            <StatsBar songs={SONGS} state={state} />
-          </div>
+          {tab !== 'timeline' && (
+            <div className="mb-4 sm:mb-5">
+              <StatsBar songs={SONGS} state={state} />
+            </div>
+          )}
+
+          {tab === 'timeline' && (
+            <TimelineTab
+              currentUserId={authSession.user.id}
+              refreshToken={timelineRefreshToken}
+            />
+          )}
 
           {tab === 'quest' && (
             <QuestTab
@@ -390,6 +517,12 @@ function App() {
           {tab === 'history' && <HistoryTab state={state} onDeleteSession={deleteSession} />}
         </main>
       </div>
+
+      {shareNotice && (
+        <div className={`fixed left-1/2 top-4 z-[70] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg px-4 py-3 text-center text-sm font-black shadow-xl ${shareNotice.includes('失敗') ? 'bg-red-950 text-red-100' : 'bg-emerald-500 text-black'}`} role="status">
+          {shareNotice}
+        </div>
+      )}
 
       {showInstallPrompt && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
@@ -460,7 +593,7 @@ function App() {
       )}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
-        <div className="mx-auto grid max-w-6xl grid-cols-4">
+        <div className="mx-auto grid max-w-6xl grid-cols-5">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -468,7 +601,7 @@ function App() {
               className={(tab === t.key ? 'text-emerald-400' : 'text-zinc-500') + ' flex min-h-16 flex-col items-center justify-center gap-1 transition-colors'}
             >
               <t.icon className="h-6 w-6" />
-              <span className="text-xs font-black">{t.label}</span>
+              <span className="text-[11px] font-black">{t.label}</span>
             </button>
           ))}
         </div>
