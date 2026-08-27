@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, Guitar, History, Home, Library, Sparkles } from 'lucide-react';
+import { CalendarDays, Download, Guitar, History, Home, Library, MoreVertical, Share2, Sparkles, X } from 'lucide-react';
 import type { Song, AppTab } from '@/types';
 import { INITIAL_SONGS } from '@/data/songs';
 import {
@@ -25,10 +25,20 @@ import { LiveTab } from '@/components/LiveTab';
 
 const SONGS: Song[] = INITIAL_SONGS;
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+
 function App() {
   const [state, setState] = useState<QuestState>(() => loadState());
   const [tab, setTab] = useState<AppTab>('quest');
   const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIosDevice, setIsIosDevice] = useState(false);
   const activeLivePlan = state.livePlans.find(
     (plan) => plan.id === state.activeLivePlanId && !plan.archivedAt
   ) ?? null;
@@ -36,6 +46,58 @@ function App() {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  useEffect(() => {
+    const navigatorWithStandalone = navigator as NavigatorWithStandalone;
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true;
+    const iosDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    setIsIosDevice(iosDevice);
+
+    if (standalone) return;
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setShowInstallPrompt(false);
+    };
+    const timer = window.setTimeout(() => {
+      try {
+        if (sessionStorage.getItem('guitar-quest-install-prompt-seen') !== '1') {
+          setShowInstallPrompt(true);
+        }
+      } catch {
+        setShowInstallPrompt(true);
+      }
+    }, 900);
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const dismissInstallPrompt = useCallback(() => {
+    try {
+      sessionStorage.setItem('guitar-quest-install-prompt-seen', '1');
+    } catch {
+      // ignore
+    }
+    setShowInstallPrompt(false);
+  }, []);
+
+  const installApp = useCallback(async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+    dismissInstallPrompt();
+  }, [dismissInstallPrompt, installPrompt]);
 
   const toggleComplete = useCallback((songNo: number) => {
     setState((prev) => {
@@ -328,6 +390,74 @@ function App() {
           {tab === 'history' && <HistoryTab state={state} onDeleteSession={deleteSession} />}
         </main>
       </div>
+
+      {showInstallPrompt && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
+          <section
+            className="w-full rounded-t-xl border border-zinc-800 bg-zinc-950 p-5 pb-safe shadow-2xl shadow-black sm:max-w-md sm:rounded-xl sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="install-app-title"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-black">
+                <Guitar className="h-7 w-7" />
+              </div>
+              <button
+                type="button"
+                onClick={dismissInstallPrompt}
+                className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-white"
+                aria-label="閉じる"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <h2 id="install-app-title" className="mt-5 text-2xl font-black text-white">Guitar Questをアプリに</h2>
+            <p className="mt-2 text-base leading-relaxed text-zinc-400">
+              ホーム画面からすぐ開けて、ブラウザのバーなしで練習に集中できます。
+            </p>
+
+            {!installPrompt && (
+              <div className="mt-5 flex items-start gap-3 rounded-lg bg-zinc-900 p-4">
+                {isIosDevice ? (
+                  <Share2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                ) : (
+                  <MoreVertical className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                )}
+                <div>
+                  <p className="text-sm font-black text-white">{isIosDevice ? 'iPhone・iPadで追加' : 'ブラウザから追加'}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+                    {isIosDevice
+                      ? 'Safariの共有ボタンを押し、「ホーム画面に追加」を選びます。'
+                      : 'ブラウザ右上のメニューから「アプリをインストール」を選びます。'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-2">
+              {installPrompt && (
+                <button
+                  type="button"
+                  onClick={installApp}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400"
+                >
+                  <Download className="h-5 w-5" />
+                  アプリをダウンロード
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={dismissInstallPrompt}
+                className="min-h-11 rounded-full px-5 text-sm font-black text-zinc-400 hover:bg-zinc-900 hover:text-white"
+              >
+                {installPrompt ? 'あとで' : '閉じる'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
         <div className="mx-auto grid max-w-6xl grid-cols-4">
