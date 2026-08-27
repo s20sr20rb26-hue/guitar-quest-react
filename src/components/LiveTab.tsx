@@ -9,6 +9,7 @@ import {
   Guitar,
   Link2,
   ListMusic,
+  ListPlus,
   LoaderCircle,
   Music2,
   Plus,
@@ -134,6 +135,7 @@ export function LiveTab({
   onLogExternalSession,
 }: LiveTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showPlaylistEditor, setShowPlaylistEditor] = useState(false);
   const [newLiveTitle, setNewLiveTitle] = useState('');
   const [newLiveDate, setNewLiveDate] = useState('');
   const [externalTitle, setExternalTitle] = useState('');
@@ -341,7 +343,7 @@ export function LiveTab({
 
             {totalSongs === 0 && (
               <div className="border-y border-zinc-900 px-4 py-12 text-center text-base text-zinc-500">
-                iTunes検索かURLから曲を追加できます。
+                「プレイリストを編集・追加」から曲を登録できます。
               </div>
             )}
 
@@ -436,9 +438,23 @@ export function LiveTab({
                 </div>
               </>
             )}
+
+            <div className="mt-4 flex justify-end px-1">
+              <button
+                type="button"
+                onClick={() => setShowPlaylistEditor((current) => !current)}
+                aria-expanded={showPlaylistEditor}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-5 text-sm font-black text-black hover:bg-white sm:w-auto"
+              >
+                {showPlaylistEditor ? <X className="h-4 w-4" /> : <ListPlus className="h-4 w-4" />}
+                {showPlaylistEditor ? '編集を閉じる' : 'プレイリストを編集・追加'}
+              </button>
+            </div>
           </section>
 
-          <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
+          {showPlaylistEditor && (
+            <>
+              <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
             <div className="mb-3 flex items-center gap-2">
               <Search className="h-5 w-5 text-emerald-400" />
               <h2 className="text-lg font-bold text-white">iTunesで曲を検索</h2>
@@ -496,9 +512,9 @@ export function LiveTab({
                 })}
               </div>
             )}
-          </section>
+              </section>
 
-          <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
+              <section className="min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
             <div className="mb-3 flex items-center gap-2">
               <Link2 className="h-5 w-5 text-emerald-400" />
               <h2 className="text-lg font-bold text-white">URLから追加</h2>
@@ -517,7 +533,9 @@ export function LiveTab({
               <Plus className="h-4 w-4" />
               セットリストに追加
             </button>
-          </section>
+              </section>
+            </>
+          )}
         </>
       ) : (
         <section className="border-y border-zinc-900 px-4 py-12 text-center">
