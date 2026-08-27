@@ -88,7 +88,7 @@ function App() {
     }));
   }, []);
 
-  const addExternalSong = useCallback((title: string, artist: string, url: string) => {
+  const addExternalSong = useCallback((title: string, artist: string, url: string, artworkUrl?: string, album?: string) => {
     setState((prev) => ({
       ...prev,
       livePlan: {
@@ -101,6 +101,8 @@ function App() {
             artist,
             url,
             service: getServiceFromUrl(url),
+            artworkUrl,
+            album,
           },
         ],
       },
