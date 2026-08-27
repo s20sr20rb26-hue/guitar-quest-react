@@ -281,7 +281,8 @@ export function LiveTab({
 
       {activeLivePlan ? (
         <>
-          <section className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/25 via-zinc-900 to-black p-4 shadow-2xl shadow-black/40 sm:rounded-2xl sm:p-6">
+          <section className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-b from-emerald-500/25 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-black/40 sm:rounded-2xl">
+            <div className="p-4 sm:p-6">
             <div className="flex min-w-0 items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <p className="mb-2 text-xs font-bold uppercase text-emerald-300">Current live</p>
@@ -332,9 +333,9 @@ export function LiveTab({
                 終了してアーカイブ
               </button>
             </div>
-          </section>
+            </div>
 
-          <section className="min-w-0 overflow-hidden">
+            <div className="min-w-0 overflow-hidden border-t border-white/5 px-3 pb-4 pt-3 sm:px-5 sm:pb-6 sm:pt-4">
             <div className="mb-2 flex justify-end px-1">
               <button
                 type="button"
@@ -483,6 +484,7 @@ export function LiveTab({
                 })}
               </div>
             )}
+            </div>
           </section>
 
           {showPlaylistEditor && (
