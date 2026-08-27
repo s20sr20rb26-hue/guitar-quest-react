@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, Download, Guitar, History, Home, Library, MoreVertical, Share2, Sparkles, X } from 'lucide-react';
+import { CalendarDays, Download, Guitar, History, Library, MoreVertical, Share2, Sparkles, X } from 'lucide-react';
 import type { Song, AppTab } from '@/types';
 import { INITIAL_SONGS } from '@/data/songs';
 import {
@@ -305,8 +305,8 @@ function App() {
     setState((prev) => ({ ...prev, skillLevels: { ...DEFAULT_SKILL_LEVELS } }));
   }, []);
 
-  const tabs: { key: AppTab; label: string; icon: typeof Home }[] = [
-    { key: 'quest', label: 'ホーム', icon: Home },
+  const tabs: { key: AppTab; label: string; icon: typeof Sparkles }[] = [
+    { key: 'quest', label: 'クエスト', icon: Sparkles },
     { key: 'courses', label: '曲', icon: Library },
     { key: 'live', label: 'ライブ', icon: CalendarDays },
     { key: 'history', label: '記録', icon: History },
