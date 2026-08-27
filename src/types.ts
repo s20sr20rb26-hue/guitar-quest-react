@@ -46,4 +46,4 @@ export interface CourseDefinition {
   songs: Song[];
 }
 
-export type AppTab = 'quest' | 'courses' | 'live' | 'history' | 'skills';
+export type AppTab = 'timeline' | 'quest' | 'courses' | 'live' | 'history' | 'skills';
