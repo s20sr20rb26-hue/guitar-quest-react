@@ -54,6 +54,7 @@ function App() {
   const [authSession, setAuthSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [timelineThreadOpen, setTimelineThreadOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
@@ -449,7 +450,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <div className="relative">
-        <header className="sticky top-0 z-40 border-b border-zinc-900 bg-black/90 pt-safe backdrop-blur-xl">
+        {!(tab === 'timeline' && timelineThreadOpen) && <header className="sticky top-0 z-40 border-b border-zinc-900 bg-black/90 pt-safe backdrop-blur-xl">
           <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -505,7 +506,7 @@ function App() {
               ))}
             </nav>
           </div>
-        </header>
+        </header>}
 
         <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-10">
           {tab === 'history' && (
@@ -518,6 +519,7 @@ function App() {
             <TimelineTab
               currentUserId={authSession.user.id}
               refreshToken={timelineRefreshToken}
+              onThreadViewChange={setTimelineThreadOpen}
             />
           )}
 
