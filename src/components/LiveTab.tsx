@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   CalendarDays,
+  Clock3,
   ChevronDown,
   ChevronUp,
   ExternalLink,
@@ -89,11 +90,19 @@ function formatLiveDate(value: string): string {
   return `${year}.${month}.${day}`;
 }
 
+function formatPracticeDuration(minutes: number): string {
+  if (minutes < 60) return minutes + '分';
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? hours + '時間' + rest + '分' : hours + '時間';
+}
+
 function getPlanMinutes(plan: LivePlan, sessions: PracticeSession[]): number {
   const externalSongIds = new Set(plan.externalSongs.map((song) => song.id));
   return sessions
     .filter(
       (session) =>
+        session.livePlanId === plan.id ||
         plan.songNos.includes(session.songNo) ||
         Boolean(session.externalSongId && externalSongIds.has(session.externalSongId))
     )
@@ -116,6 +125,7 @@ interface LiveTabProps {
   onRemoveExternalSong: (id: string) => void;
   onLogSession: (song: Song) => void;
   onLogExternalSession: (song: ExternalSong) => void;
+  onLogLiveSession: (plan: LivePlan) => void;
 }
 
 export function LiveTab({
@@ -134,6 +144,7 @@ export function LiveTab({
   onRemoveExternalSong,
   onLogSession,
   onLogExternalSession,
+  onLogLiveSession,
 }: LiveTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showPlaylistEditor, setShowPlaylistEditor] = useState(false);
@@ -329,7 +340,7 @@ export function LiveTab({
                     </span>
                   )}
                   <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">{totalSongs}曲</span>
-                  <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">練習 {totalMinutes}分</span>
+                  <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">練習 {formatPracticeDuration(totalMinutes)}</span>
                 </div>
               </div>
             </div>
@@ -346,14 +357,24 @@ export function LiveTab({
               ) : (
                 <p className="text-sm text-zinc-500">日付を入れると本番までの日数が表示されます。</p>
               )}
-              <button
-                type="button"
-                onClick={() => onArchiveLivePlan(activeLivePlan.id)}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-700 px-4 text-sm font-black text-zinc-200 hover:border-emerald-500 hover:text-white"
-              >
-                <Archive className="h-4 w-4" />
-                終了してアーカイブ
-              </button>
+              <div className="grid gap-2 sm:flex sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => onLogLiveSession(activeLivePlan)}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400"
+                >
+                  <Clock3 className="h-5 w-5" />
+                  ライブ練習を記録
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onArchiveLivePlan(activeLivePlan.id)}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-700 px-4 text-sm font-black text-zinc-200 hover:border-emerald-500 hover:text-white"
+                >
+                  <Archive className="h-4 w-4" />
+                  終了してアーカイブ
+                </button>
+              </div>
             </div>
             </div>
 
@@ -633,7 +654,7 @@ export function LiveTab({
                     <div className="min-w-0">
                       <h3 className="truncate text-lg font-black text-white">{plan.title}</h3>
                       <p className="mt-0.5 truncate text-sm text-zinc-500">
-                        {formatLiveDate(plan.date)} ・ {archivedSongCount}曲 ・ 練習 {archivedMinutes}分
+                        {formatLiveDate(plan.date)} ・ {archivedSongCount}曲 ・ 練習 {formatPracticeDuration(archivedMinutes)}
                       </p>
                     </div>
                     <button
