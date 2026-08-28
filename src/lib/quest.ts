@@ -1,5 +1,6 @@
 import type { Song } from '@/types';
 import { DEFAULT_SKILL_LEVELS as GENERATED_SKILL_LEVELS, parseSkillNames } from '@/data/skills';
+import { INITIAL_SONGS } from '@/data/songs';
 
 export interface SkillProgress {
   skill: string;
@@ -112,13 +113,35 @@ function makeInitialLivePlan(): LivePlan {
 
 function normalizeSkillLevels(
   storedLevels: Record<string, number> | undefined,
-  removeLegacyBaseline: boolean
+  removeLegacyBaseline: boolean,
+  completedSongNos: number[]
 ): Record<string, number> {
-  const levels = { ...DEFAULT_SKILL_LEVELS, ...storedLevels };
-  if (!removeLegacyBaseline) return levels;
+  const levels = { ...DEFAULT_SKILL_LEVELS };
 
-  levels['ピッキング'] = Math.max(0, (levels['ピッキング'] ?? 0) - 1);
-  levels['8ビート'] = Math.max(0, (levels['8ビート'] ?? 0) - 1);
+  for (const [skill, level] of Object.entries(storedLevels ?? {})) {
+    if (Object.prototype.hasOwnProperty.call(levels, skill) && Number.isFinite(level)) {
+      levels[skill] = Math.max(0, level);
+    }
+  }
+
+  if (removeLegacyBaseline) {
+    levels['ピッキング'] = Math.max(0, (levels['ピッキング'] ?? 0) - 1);
+    levels['8ビート'] = Math.max(0, (levels['8ビート'] ?? 0) - 1);
+  }
+
+  const completed = new Set(completedSongNos);
+  const earnedLevels: Record<string, number> = {};
+  for (const song of INITIAL_SONGS) {
+    if (!completed.has(song.No)) continue;
+    for (const skill of getAcquiredSkills(song)) {
+      if (!Object.prototype.hasOwnProperty.call(levels, skill)) continue;
+      earnedLevels[skill] = (earnedLevels[skill] ?? 0) + 1;
+    }
+  }
+
+  for (const [skill, level] of Object.entries(earnedLevels)) {
+    levels[skill] = Math.max(levels[skill] ?? 0, level);
+  }
   return levels;
 }
 
@@ -144,7 +167,11 @@ export function loadState(): QuestState {
         weeklySongNo: parsed.weeklySongNo ?? null,
         weekStartedAt: parsed.weekStartedAt ?? null,
         sessions: parsed.sessions ?? [],
-        skillLevels: normalizeSkillLevels(parsed.skillLevels, parsed.skillBaselineRemoved !== true),
+        skillLevels: normalizeSkillLevels(
+          parsed.skillLevels,
+          parsed.skillBaselineRemoved !== true,
+          parsed.completedSongNos ?? []
+        ),
         skillBaselineRemoved: true,
         livePlans,
         activeLivePlanId: savedActiveLive?.id ?? availableLive?.id ?? null,
