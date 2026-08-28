@@ -29,6 +29,11 @@ import { TimelineTab } from '@/components/TimelineTab';
 import { ProfileModal } from '@/components/ProfileModal';
 import { supabase } from '@/lib/supabase';
 import {
+  getAppHistoryState,
+  pushAppHistoryView,
+  returnFromAppHistoryView,
+} from '@/lib/appHistory';
+import {
   createPracticePost,
   deletePracticePost,
   deleteProfileAvatar,
@@ -69,6 +74,26 @@ function App() {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const historyState = getAppHistoryState();
+      const historyTarget = historyState.practiceTarget;
+      if (
+        historyState.guitarQuestView === 'practice-log'
+        && historyTarget
+        && typeof historyTarget === 'object'
+        && typeof (historyTarget as PracticeTarget).songName === 'string'
+      ) {
+        setLogTarget(historyTarget as PracticeTarget);
+        return;
+      }
+      setLogTarget(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -339,23 +364,34 @@ function App() {
     });
   }, []);
 
-  const logSession = useCallback((song: Song) => {
-    setLogTarget({ songNo: song.No, songName: song.曲名, artist: song.アーティスト });
+  const openPracticeLog = useCallback((target: PracticeTarget) => {
+    pushAppHistoryView('practice-log', { practiceTarget: target });
+    setLogTarget(target);
   }, []);
 
+  const closePracticeLog = useCallback(() => {
+    setLogTarget(null);
+    returnFromAppHistoryView('practice-log');
+  }, []);
+
+  const logSession = useCallback((song: Song) => {
+    openPracticeLog({ songNo: song.No, songName: song.曲名, artist: song.アーティスト });
+  }, [openPracticeLog]);
+
   const logExternalSession = useCallback((song: ExternalSong) => {
-    setLogTarget({
+    openPracticeLog({
       songNo: 0,
       songName: song.title,
       artist: song.artist || '未設定',
       externalSongId: song.id,
       artworkUrl: song.artworkUrl,
     });
-  }, []);
+  }, [openPracticeLog]);
 
   const saveSession = useCallback(
     (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => {
       if (!logTarget || !authSession) return;
+      const target = logTarget;
       const now = new Date();
       const [year, month, day] = practiceDate.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes());
@@ -363,23 +399,23 @@ function App() {
       const session: PracticeSession = {
         id: crypto.randomUUID(),
         date: recordedAt.toISOString(),
-        songNo: logTarget.songNo,
-        songName: logTarget.songName,
-        externalSongId: logTarget.externalSongId,
+        songNo: target.songNo,
+        songName: target.songName,
+        externalSongId: target.externalSongId,
         durationMin,
         memo,
         rating,
         focus,
       };
       setState((prev) => ({ ...prev, sessions: [session, ...prev.sessions] }));
-      setLogTarget(null);
+      closePracticeLog();
 
       void createPracticePost({
         id: session.id,
         userId: authSession.user.id,
-        songName: logTarget.songName,
-        artist: logTarget.artist,
-        artworkUrl: logTarget.artworkUrl,
+        songName: target.songName,
+        artist: target.artist,
+        artworkUrl: target.artworkUrl,
         durationMin,
         memo,
         focus,
@@ -394,7 +430,7 @@ function App() {
           setShareNotice('記録は保存しましたが、タイムラインへの共有に失敗しました');
         });
     },
-    [authSession, logTarget]
+    [authSession, closePracticeLog, logTarget]
   );
 
   const deleteSession = useCallback((id: string) => {
@@ -659,7 +695,7 @@ function App() {
         </div>
       </nav>
 
-      {logTarget && <LogSessionModal song={logTarget} onClose={() => setLogTarget(null)} onSave={saveSession} />}
+      {logTarget && <LogSessionModal song={logTarget} onClose={closePracticeLog} onSave={saveSession} />}
     </div>
   );
 }
