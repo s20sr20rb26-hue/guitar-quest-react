@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { SongArtwork } from '@/components/SongArtwork';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   createPostComment,
@@ -208,13 +209,14 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
 
         <div className="ml-0 mt-3 rounded-lg bg-zinc-900 p-4 sm:ml-14">
           <div className="flex gap-4">
-            {post.artworkUrl ? (
-              <img src={post.artworkUrl} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
-            ) : (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-zinc-800 text-emerald-400">
-                <Guitar className="h-7 w-7" />
-              </div>
-            )}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400">
+              <SongArtwork
+                title={post.songName}
+                artist={post.artist}
+                src={post.artworkUrl}
+                fallback={<Guitar className="h-7 w-7" />}
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-black text-white">{post.songName}</p>
               {post.artist && <p className="truncate text-sm font-bold text-zinc-500">{post.artist}</p>}

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { Song } from '@/types';
 import type { ExternalSong, LivePlan, PracticeSession } from '@/lib/quest';
+import { SongArtwork } from '@/components/SongArtwork';
 
 interface ItunesTrack {
   trackId: number;
@@ -372,8 +373,12 @@ export function LiveTab({
                   return (
                     <div key={song.No} className="relative">
                       <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-1 py-2.5 hover:bg-zinc-900/70 sm:px-2">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400">
-                          <Guitar className="h-6 w-6" />
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-950 text-emerald-400">
+                          <SongArtwork
+                            title={song.曲名}
+                            artist={song.アーティスト}
+                            fallback={<Guitar className="h-6 w-6" />}
+                          />
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-base font-bold text-white">{song.曲名}</p>
@@ -428,11 +433,7 @@ export function LiveTab({
                     <div key={song.id} className="relative">
                       <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-1 py-2.5 hover:bg-zinc-900/70 sm:px-2">
                         <a href={song.url} target="_blank" rel="noopener noreferrer" className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="曲を開く">
-                          {song.artworkUrl ? (
-                            <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                          ) : (
-                            <Music2 className="h-6 w-6" />
-                          )}
+                          <SongArtwork title={song.title} artist={song.artist} src={song.artworkUrl} />
                         </a>
                         <div className="min-w-0">
                           <a href={song.url} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
@@ -529,11 +530,12 @@ export function LiveTab({
                   return (
                     <div key={track.trackId} className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 bg-zinc-950 px-3 py-3">
                       <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400" title="Apple Musicで開く">
-                        {track.artworkUrl100 ? (
-                          <img src={track.artworkUrl100} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <Music2 className="h-5 w-5" />
-                        )}
+                        <SongArtwork
+                          title={track.trackName}
+                          artist={track.artistName}
+                          src={track.artworkUrl100}
+                          fallback={<Music2 className="h-5 w-5" />}
+                        />
                       </a>
                       <div className="min-w-0">
                         <a href={track.trackViewUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-base font-bold text-white hover:text-emerald-300">
