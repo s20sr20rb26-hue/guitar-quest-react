@@ -155,7 +155,7 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                       const databaseSong = INITIAL_SONGS.find((song) => song.No === session.songNo);
                       const externalSong = session.externalSongId ? externalSongsById.get(session.externalSongId) : undefined;
                       const isLivePractice = Boolean(session.livePlanId);
-                      const artist = isLivePractice ? 'ライブ全体' : databaseSong?.アーティスト || externalSong?.artist || '';
+                      const artist = isLivePractice ? 'ライブ全体' : session.artist || databaseSong?.アーティスト || externalSong?.artist || '';
                       return (
                         <article key={session.id} className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 hover:border-zinc-700">
                           <div className="flex items-start gap-3">
@@ -166,7 +166,7 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                                 <SongArtwork
                                   title={session.songName}
                                   artist={artist}
-                                  src={externalSong?.artworkUrl}
+                                  src={session.artworkUrl || externalSong?.artworkUrl}
                                   fallback={<Guitar className="h-5 w-5" />}
                                 />
                               )}
