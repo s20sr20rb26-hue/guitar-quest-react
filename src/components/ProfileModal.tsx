@@ -1,12 +1,12 @@
-import { Camera, LoaderCircle, Mail, Save, UserRound, X } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { ImagePlus, LoaderCircle, Mail, Save, Trash2, UserRound, X } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import type { Profile } from '@/lib/social';
 
 interface ProfileModalProps {
   profile: Profile;
   email: string;
   onClose: () => void;
-  onSave: (username: string, avatarUrl?: string) => Promise<void>;
+  onSave: (username: string, avatarFile?: File, removeAvatar?: boolean) => Promise<void>;
 }
 
 function profileInitial(username: string): string {
@@ -15,32 +15,54 @@ function profileInitial(username: string): string {
 
 export function ProfileModal({ profile, email, onClose, onSave }: ProfileModalProps) {
   const [username, setUsername] = useState(profile.username);
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(profile.avatarUrl ?? '');
   const [imageFailed, setImageFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setImageFailed(false);
-  }, [avatarUrl]);
+    if (!avatarFile) {
+      setPreviewUrl(removeAvatar ? '' : profile.avatarUrl ?? '');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(avatarFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [avatarFile, profile.avatarUrl, removeAvatar]);
+
+  const selectAvatar = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('JPEG・PNG・WebPの画像を選んでください');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('画像は5MB以下にしてください');
+      return;
+    }
+    setAvatarFile(file);
+    setRemoveAvatar(false);
+    setError('');
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = username.trim();
-    const trimmedAvatar = avatarUrl.trim();
     if (!trimmedName) {
       setError('アカウント名を入力してください');
-      return;
-    }
-    if (trimmedAvatar && !/^https?:\/\//i.test(trimmedAvatar)) {
-      setError('画像URLは http:// または https:// から入力してください');
       return;
     }
 
     setSubmitting(true);
     setError('');
     try {
-      await onSave(trimmedName, trimmedAvatar || undefined);
+      await onSave(trimmedName, avatarFile ?? undefined, removeAvatar);
       onClose();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'プロフィールを保存できませんでした');
@@ -76,9 +98,9 @@ export function ProfileModal({ profile, email, onClose, onSave }: ProfileModalPr
 
         <div className="space-y-5 px-4 py-5 sm:px-5">
           <div className="flex justify-center">
-            {avatarUrl && !imageFailed ? (
+            {previewUrl && !imageFailed ? (
               <img
-                src={avatarUrl}
+                src={previewUrl}
                 alt="プロフィール画像のプレビュー"
                 onError={() => setImageFailed(true)}
                 className="h-24 w-24 rounded-full border-2 border-emerald-400 object-cover"
@@ -105,20 +127,35 @@ export function ProfileModal({ profile, email, onClose, onSave }: ProfileModalPr
             </span>
           </label>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-bold text-zinc-300">プロフィール画像URL</span>
-            <span className="flex min-h-12 items-center gap-3 rounded-lg border border-zinc-800 bg-black px-3 focus-within:border-emerald-500">
-              <Camera className="h-5 w-5 shrink-0 text-zinc-500" />
-              <input
-                type="url"
-                value={avatarUrl}
-                onChange={(event) => setAvatarUrl(event.target.value)}
-                placeholder="https://example.com/photo.jpg"
-                className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-zinc-700"
-              />
-            </span>
-            <p className="mt-2 text-xs text-zinc-600">空欄にすると名前の頭文字を表示します。</p>
-          </label>
+          <div>
+            <span className="mb-2 block text-sm font-bold text-zinc-300">プロフィール画像</span>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white">
+                <ImagePlus className="h-4 w-4" />
+                写真を選ぶ
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={selectAvatar}
+                  className="sr-only"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setAvatarFile(null);
+                  setRemoveAvatar(true);
+                  setImageFailed(false);
+                }}
+                disabled={!previewUrl && !avatarFile}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 text-sm font-black text-zinc-300 hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:text-zinc-700"
+              >
+                <Trash2 className="h-4 w-4" />
+                削除
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600">JPEG・PNG・WebP、5MBまで。</p>
+          </div>
 
           <div>
             <span className="mb-2 block text-sm font-bold text-zinc-300">登録メール</span>
