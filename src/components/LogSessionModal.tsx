@@ -10,6 +10,14 @@ interface LogSessionModalProps {
 }
 
 const FOCUS_OPTIONS = ['通し練習', '苦手部分', 'リフ', 'コード', 'ソロ', 'テンポ'];
+const LIVE_FOCUS_OPTIONS = ['通し練習', '曲順確認', '転換', 'MC', '音作り', 'テンポ'];
+
+function formatPracticeDuration(minutes: number): string {
+  if (minutes < 60) return minutes + '分';
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? hours + '時間' + rest + '分' : hours + '時間';
+}
 
 function localDateValue(date: Date): string {
   const year = date.getFullYear();
@@ -20,7 +28,10 @@ function localDateValue(date: Date): string {
 
 export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps) {
   const today = localDateValue(new Date());
-  const [duration, setDuration] = useState(30);
+  const isLivePractice = Boolean(song.livePlanId);
+  const quickDurations = isLivePractice ? [30, 60, 90, 120] : [15, 30, 45, 60];
+  const focusOptions = isLivePractice ? LIVE_FOCUS_OPTIONS : FOCUS_OPTIONS;
+  const [duration, setDuration] = useState(isLivePractice ? 60 : 30);
   const [memo, setMemo] = useState('');
   const [rating, setRating] = useState(3);
   const [focus, setFocus] = useState('通し練習');
@@ -43,7 +54,7 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
           <div>
             <p className="text-xs font-bold uppercase text-emerald-400">Practice log</p>
-            <h2 className="text-lg font-black text-white">練習を記録</h2>
+            <h2 className="text-lg font-black text-white">{isLivePractice ? 'ライブ練習を記録' : '練習を記録'}</h2>
           </div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-white" aria-label="閉じる">
             <X className="h-5 w-5" />
@@ -53,12 +64,16 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
         <div className="space-y-6 px-4 py-5 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-950 text-emerald-400">
-              <SongArtwork
-                title={song.songName}
-                artist={song.artist}
-                src={song.artworkUrl}
-                fallback={<Guitar className="h-6 w-6" />}
-              />
+              {isLivePractice ? (
+                <CalendarDays className="h-6 w-6" />
+              ) : (
+                <SongArtwork
+                  title={song.songName}
+                  artist={song.artist}
+                  src={song.artworkUrl}
+                  fallback={<Guitar className="h-6 w-6" />}
+                />
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-black text-white">{song.songName}</p>
@@ -84,7 +99,7 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
               </button>
             </div>
             <div className="mt-3 grid grid-cols-4 overflow-hidden rounded-lg border border-zinc-800">
-              {[15, 30, 45, 60].map((minutes) => (
+              {quickDurations.map((minutes) => (
                 <button
                   key={minutes}
                   type="button"
@@ -133,7 +148,7 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
               練習内容
             </p>
             <div className="grid grid-cols-3 gap-2">
-              {FOCUS_OPTIONS.map((option) => (
+              {focusOptions.map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -163,7 +178,7 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
 
         <footer className="sticky bottom-0 border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
           <button type="submit" className="min-h-12 w-full rounded-full bg-emerald-500 px-5 text-base font-black text-black hover:bg-emerald-400">
-            {duration}分を記録する
+            {formatPracticeDuration(duration)}を記録する
           </button>
         </footer>
       </form>
