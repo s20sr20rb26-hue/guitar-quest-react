@@ -1,4 +1,5 @@
 import type { Song } from '@/types';
+import { DEFAULT_SKILL_LEVELS as GENERATED_SKILL_LEVELS } from '@/data/skills';
 
 export interface SkillProgress {
   skill: string;
@@ -62,51 +63,7 @@ export interface QuestState {
   activeLivePlanId: string | null;
 }
 
-export const DEFAULT_SKILL_LEVELS: Record<string, number> = {
-  'ピッキング': 0,
-  'パワーコード': 0,
-  'ローコード': 0,
-  'コードチェンジ': 0,
-  '単音リフ': 0,
-  '8ビート': 0,
-  '16ビート': 0,
-  'カッティング': 0,
-  '左手ミュート': 0,
-  'ブリッジミュート': 0,
-  'オクターブ奏法': 0,
-  'チョーキング': 0,
-  'ハンマリング・プリング': 0,
-  'レガート': 0,
-  'ブルースフレーズ': 0,
-  'ペンタ': 0,
-  'シャッフル': 0,
-  'ギターソロ': 0,
-  '高速フレーズ': 0,
-  'オルタネイト': 0,
-  'コードワーク': 0,
-  'コードカッティング': 0,
-  '単音カッティング': 0,
-  'アンサンブル': 0,
-  '歌伴': 0,
-  '歪み': 0,
-  'ハイゲイン': 0,
-  '深い歪み': 0,
-  'ディレイ': 0,
-  'リバーブ': 0,
-  '空間系': 0,
-  'ドロップD': 0,
-  'テンション': 0,
-  'バレーコード': 0,
-  'アルペジオ': 0,
-  'セッション': 0,
-  '即興演奏': 0,
-  'フュージョン': 0,
-  'ジミヘンコード': 0,
-  'オルタナリフ': 0,
-  'テンポキープ': 0,
-  'ストローク': 0,
-  'コードストローク': 0,
-};
+export const DEFAULT_SKILL_LEVELS: Record<string, number> = GENERATED_SKILL_LEVELS;
 
 const STORAGE_KEY = 'guitar-quest-state-v1';
 
