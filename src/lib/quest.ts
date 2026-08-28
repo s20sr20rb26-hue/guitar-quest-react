@@ -252,7 +252,16 @@ export function recommendNextSongs(
   limit = 8
 ): Song[] {
   const completed = new Set(state.completedSongNos);
-  const candidates = songs.filter((s) => !completed.has(s.No));
+  const selectedCategories = state.favoriteRoutes.length > 0
+    ? state.favoriteRoutes
+    : state.currentGoal
+      ? [state.currentGoal]
+      : [];
+  const categorySongs = selectedCategories.length > 0
+    ? songs.filter((song) => selectedCategories.includes(song.推奨ルート))
+    : songs;
+  const incompleteCategorySongs = categorySongs.filter((song) => !completed.has(song.No));
+  const candidates = incompleteCategorySongs.length > 0 ? incompleteCategorySongs : categorySongs;
 
   const scored = candidates.map((song) => {
     const { ok, missing } = canPlaySong(song, state.skillLevels);
@@ -262,8 +271,6 @@ export function recommendNextSongs(
     score += song.エチュード適性 * 3;
     score += song.ジャンル定番度 * 2;
     score -= song.演奏難易度 * 2;
-    if (state.currentGoal && song.推奨ルート === state.currentGoal) score += 20;
-    if (state.favoriteRoutes?.includes(song.推奨ルート)) score += 28;
     return { song, score };
   });
 
