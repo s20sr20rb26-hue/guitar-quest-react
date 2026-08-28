@@ -474,7 +474,7 @@ function App() {
         </header>
 
         <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-10">
-          {tab !== 'timeline' && (
+          {tab === 'history' && (
             <div className="mb-4 sm:mb-5">
               <StatsBar songs={SONGS} state={state} />
             </div>
