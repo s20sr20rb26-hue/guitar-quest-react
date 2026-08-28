@@ -61,6 +61,26 @@ export async function getProfile(userId: string): Promise<Profile> {
   };
 }
 
+export async function updateProfile(userId: string, username: string, avatarUrl?: string): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      username: username.trim(),
+      avatar_url: avatarUrl?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('id, username, avatar_url')
+    .single();
+
+  if (error) throw error;
+  return {
+    id: data.id,
+    username: data.username,
+    avatarUrl: data.avatar_url ?? undefined,
+  };
+}
+
 export async function fetchTimeline(): Promise<TimelinePost[]> {
   const { data, error } = await supabase
     .from('practice_posts')
