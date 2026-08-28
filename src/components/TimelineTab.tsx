@@ -22,6 +22,11 @@ import {
   type TimelinePost,
 } from '@/lib/social';
 import { supabase } from '@/lib/supabase';
+import {
+  getAppHistoryState,
+  pushAppHistoryView,
+  returnFromAppHistoryView,
+} from '@/lib/appHistory';
 
 interface TimelineTabProps {
   currentUserId: string;
@@ -100,6 +105,24 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
   }, [onThreadViewChange, threadPostId]);
 
   useEffect(() => {
+    const handlePopState = () => {
+      const historyState = getAppHistoryState();
+      const historyPostId = historyState.timelinePostId;
+      if (historyState.guitarQuestView === 'timeline-thread' && typeof historyPostId === 'string') {
+        setThreadPostId(historyPostId);
+      } else {
+        setThreadPostId(null);
+        setCommentDraft('');
+        setDeleteCommentId(null);
+        setActionError('');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
     const channel = supabase
       .channel('practice-timeline')
       .on(
@@ -150,6 +173,7 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
   };
 
   const openThread = (postId: string) => {
+    pushAppHistoryView('timeline-thread', { timelinePostId: postId });
     setThreadPostId(postId);
     setCommentDraft('');
     setDeleteCommentId(null);
@@ -161,6 +185,7 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
     setCommentDraft('');
     setDeleteCommentId(null);
     setActionError('');
+    returnFromAppHistoryView('timeline-thread');
   };
 
   const submitComment = async (event: FormEvent<HTMLFormElement>, postId: string) => {
