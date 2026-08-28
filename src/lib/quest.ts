@@ -15,6 +15,7 @@ export interface PracticeSession {
   rating: number;
   focus?: string;
   externalSongId?: string;
+  livePlanId?: string;
 }
 
 export interface PracticeTarget {
@@ -22,6 +23,7 @@ export interface PracticeTarget {
   songName: string;
   artist: string;
   externalSongId?: string;
+  livePlanId?: string;
   artworkUrl?: string;
 }
 
