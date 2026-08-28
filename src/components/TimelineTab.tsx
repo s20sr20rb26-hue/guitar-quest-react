@@ -1,11 +1,15 @@
 import {
   ArrowLeft,
+  ChevronRight,
   Clock3,
   Guitar,
   Heart,
   LoaderCircle,
   MessageCircle,
+  Music2,
+  Plus,
   RefreshCw,
+  Search,
   Send,
   Sparkles,
   Star,
@@ -13,6 +17,8 @@ import {
   X,
 } from 'lucide-react';
 import { SongArtwork } from '@/components/SongArtwork';
+import type { PracticeTarget } from '@/lib/quest';
+import { searchItunesSongs, type ItunesTrack } from '@/lib/itunes';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   createPostComment,
@@ -32,6 +38,7 @@ interface TimelineTabProps {
   currentUserId: string;
   refreshToken: number;
   onThreadViewChange: (open: boolean) => void;
+  onLogSong: (target: PracticeTarget) => void;
 }
 
 function formatDuration(minutes: number): string {
@@ -69,7 +76,7 @@ function accountInitial(username: string): string {
   return Array.from(username.trim())[0]?.toUpperCase() || 'G';
 }
 
-export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }: TimelineTabProps) {
+export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, onLogSong }: TimelineTabProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,6 +87,11 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [likePendingPostId, setLikePendingPostId] = useState<string | null>(null);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [songSearchOpen, setSongSearchOpen] = useState(false);
+  const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [songSearchResults, setSongSearchResults] = useState<ItunesTrack[]>([]);
+  const [songSearchLoading, setSongSearchLoading] = useState(false);
+  const [songSearchError, setSongSearchError] = useState('');
 
   const loadPosts = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true);
@@ -108,6 +120,13 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
     const handlePopState = () => {
       const historyState = getAppHistoryState();
       const historyPostId = historyState.timelinePostId;
+      const isSongSearch = historyState.guitarQuestView === 'timeline-song-search';
+      setSongSearchOpen(isSongSearch);
+      if (!isSongSearch) {
+        setSongSearchQuery('');
+        setSongSearchResults([]);
+        setSongSearchError('');
+      }
       if (historyState.guitarQuestView === 'timeline-thread' && typeof historyPostId === 'string') {
         setThreadPostId(historyPostId);
       } else {
@@ -146,6 +165,55 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
       void supabase.removeChannel(channel);
     };
   }, [loadPosts]);
+
+
+  const openSongSearch = () => {
+    if (getAppHistoryState().guitarQuestView !== 'timeline-song-search') {
+      pushAppHistoryView('timeline-song-search');
+    }
+    setSongSearchOpen(true);
+  };
+
+  const closeSongSearch = () => {
+    setSongSearchOpen(false);
+    setSongSearchQuery('');
+    setSongSearchResults([]);
+    setSongSearchError('');
+    returnFromAppHistoryView('timeline-song-search');
+  };
+
+  const submitSongSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = songSearchQuery.trim();
+    if (!query || songSearchLoading) return;
+
+    setSongSearchLoading(true);
+    setSongSearchError('');
+    try {
+      const results = await searchItunesSongs(query);
+      setSongSearchResults(results);
+      if (results.length === 0) setSongSearchError('曲が見つかりませんでした');
+    } catch (searchError) {
+      setSongSearchResults([]);
+      setSongSearchError(searchError instanceof Error ? searchError.message : '検索できませんでした');
+    } finally {
+      setSongSearchLoading(false);
+    }
+  };
+
+  const chooseSearchedSong = (track: ItunesTrack) => {
+    setSongSearchOpen(false);
+    setSongSearchQuery('');
+    setSongSearchResults([]);
+    setSongSearchError('');
+    onLogSong({
+      songNo: 0,
+      songName: track.trackName,
+      artist: track.artistName,
+      externalSongId: `itunes-${track.trackId}`,
+      artworkUrl: track.artworkUrl100,
+    });
+  };
 
   const toggleLike = async (post: TimelinePost) => {
     if (likePendingPostId) return;
@@ -443,6 +511,110 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }:
           ))}
         </div>
       )}
+
+      {songSearchOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 sm:items-center sm:p-4"
+          role="presentation"
+          onClick={closeSongSearch}
+        >
+          <section
+            className="flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-xl border border-zinc-800 bg-zinc-950 shadow-2xl sm:max-w-lg sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="timeline-song-search-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-4 border-b border-zinc-800 px-4 py-4">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-400">iTunes Search</p>
+                <h3 id="timeline-song-search-title" className="mt-1 text-xl font-black text-white">好きな曲を練習記録</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeSongSearch}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                aria-label="閉じる"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+
+            <form onSubmit={(event) => void submitSongSearch(event)} className="border-b border-zinc-900 p-4">
+              <label className="grid min-h-12 grid-cols-[1.25rem_minmax(0,1fr)_2.75rem] items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-3 focus-within:border-emerald-500">
+                <Search className="h-5 w-5 text-zinc-500" />
+                <span className="sr-only">曲名またはアーティスト名</span>
+                <input
+                  value={songSearchQuery}
+                  onChange={(event) => setSongSearchQuery(event.target.value)}
+                  placeholder="曲名・アーティストで検索"
+                  autoFocus
+                  className="min-w-0 bg-transparent py-3 text-base font-bold text-white outline-none placeholder:text-zinc-600"
+                />
+                <button
+                  type="submit"
+                  disabled={!songSearchQuery.trim() || songSearchLoading}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-black hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-600"
+                  aria-label="iTunesで検索"
+                >
+                  {songSearchLoading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+                </button>
+              </label>
+            </form>
+
+            <div className="min-h-48 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+              {songSearchError ? (
+                <p className="px-5 py-10 text-center text-sm font-bold text-zinc-500">{songSearchError}</p>
+              ) : songSearchResults.length === 0 ? (
+                <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
+                  <Music2 className="h-9 w-9 text-zinc-700" />
+                  <p className="mt-4 text-sm font-bold leading-relaxed text-zinc-500">
+                    エチュード一覧にない曲も<br />ここから記録できます
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-900">
+                  {songSearchResults.map((track) => (
+                    <button
+                      key={track.trackId}
+                      type="button"
+                      onClick={() => chooseSearchedSong(track)}
+                      className="grid w-full grid-cols-[4rem_minmax(0,1fr)_2.5rem] items-center gap-3 px-4 py-3 text-left hover:bg-zinc-900"
+                    >
+                      <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-zinc-900 text-zinc-600">
+                        <SongArtwork
+                          title={track.trackName}
+                          artist={track.artistName}
+                          src={track.artworkUrl100}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-black text-white">{track.trackName}</p>
+                        <p className="mt-1 truncate text-sm font-bold text-zinc-400">{track.artistName}</p>
+                        {track.collectionName && (
+                          <p className="mt-0.5 truncate text-xs text-zinc-600">{track.collectionName}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-5 w-5 justify-self-end text-zinc-600" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={openSongSearch}
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-xl shadow-black/50 transition-transform hover:bg-emerald-400 active:scale-95 sm:bottom-6 sm:right-6"
+        aria-label="エチュード一覧にない曲を練習記録"
+        title="好きな曲を練習記録"
+      >
+        <Plus className="h-7 w-7" strokeWidth={3} />
+      </button>
     </section>
   );
 }
