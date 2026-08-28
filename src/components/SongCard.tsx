@@ -17,6 +17,9 @@ export function SongCard({ song, completed, skillLevels, onToggleComplete, onLog
   const { ok, missing } = canPlaySong(song, skillLevels);
 
   const difficultyDots = Array.from({ length: 8 }, (_, i) => i < song.演奏難易度);
+  const hasDetails = Boolean(
+    song.練習ポイント || song.壁 || song.必須スキル || song.習得スキル || song.次候補 || song.参考動画URL,
+  );
 
   return (
     <div
@@ -83,9 +86,16 @@ export function SongCard({ song, completed, skillLevels, onToggleComplete, onLog
         </div>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="rounded-md bg-slate-800/60 px-2 py-0.5 text-[11px] font-medium text-amber-300/80">
-            {song.主スキル}
-          </span>
+          {song.ルーツ && (
+            <span className="rounded-md bg-slate-800/60 px-2 py-0.5 text-[11px] font-medium text-amber-300/80">
+              {song.ルーツ}
+            </span>
+          )}
+          {song.主スキル && (
+            <span className="rounded-md bg-slate-800/60 px-2 py-0.5 text-[11px] font-medium text-sky-300/80">
+              {song.主スキル}
+            </span>
+          )}
           {!ok && missing.length > 0 && (
             <span className="flex items-center gap-1 rounded-md bg-red-950/40 px-2 py-0.5 text-[11px] font-medium text-red-400/80">
               <Lock className="h-3 w-3" />
@@ -94,7 +104,7 @@ export function SongCard({ song, completed, skillLevels, onToggleComplete, onLog
           )}
         </div>
 
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">{song.一言説明}</p>
+        {song.一言説明 && <p className="mt-3 text-sm leading-relaxed text-slate-400">{song.一言説明}</p>}
 
         {variant === 'default' && (
           <>
@@ -117,16 +127,18 @@ export function SongCard({ song, completed, skillLevels, onToggleComplete, onLog
                   参考動画
                 </a>
               )}
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="ml-auto flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-slate-300"
-              >
-                {expanded ? '閉じる' : '詳細'}
-                {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
+              {hasDetails && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="ml-auto flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-slate-300"
+                >
+                  {expanded ? '閉じる' : '詳細'}
+                  {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              )}
             </div>
 
-            {expanded && (
+            {expanded && hasDetails && (
               <div className="mt-4 space-y-3 border-t border-slate-800 pt-4">
                 <div>
                   <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
