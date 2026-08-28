@@ -1,5 +1,6 @@
 import { CalendarDays, Clock3, Guitar, MessageSquare, Minus, Plus, Star, Target, X } from 'lucide-react';
 import { useState } from 'react';
+import { SongArtwork } from '@/components/SongArtwork';
 import type { PracticeTarget } from '@/lib/quest';
 
 interface LogSessionModalProps {
@@ -51,8 +52,13 @@ export function LogSessionModal({ song, onClose, onSave }: LogSessionModalProps)
 
         <div className="space-y-6 px-4 py-5 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400">
-              <Guitar className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-950 text-emerald-400">
+              <SongArtwork
+                title={song.songName}
+                artist={song.artist}
+                src={song.artworkUrl}
+                fallback={<Guitar className="h-6 w-6" />}
+              />
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-black text-white">{song.songName}</p>
