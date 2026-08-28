@@ -1,4 +1,4 @@
-const CACHE_NAME = 'guitar-quest-shell-v1';
+const CACHE_NAME = 'guitar-quest-shell-v2';
 const APP_ROOT = '/guitar-quest-react/';
 
 self.addEventListener('install', (event) => {
@@ -17,12 +17,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET') return;
+  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.ok && new URL(request.url).origin === self.location.origin) {
+        if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
