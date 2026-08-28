@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Award, ChevronDown, Music2, Target, TrendingUp, X, Zap } from 'lucide-react';
+import { Award, BadgeCheck, ChevronDown, Music2, Target, TrendingUp, X, Zap } from 'lucide-react';
 import type { Song } from '@/types';
 import type { QuestState } from '@/lib/quest';
-import { canPlaySong } from '@/lib/quest';
+import { canPlaySong, getAcquiredSkills } from '@/lib/quest';
 
 interface StatsBarProps {
   songs: Song[];
@@ -11,11 +11,34 @@ interface StatsBarProps {
 
 type SongListKey = 'completed' | 'playable';
 
+function getSkillTone(level: number, selected: boolean) {
+  if (selected) return 'border-emerald-400 bg-emerald-400 text-slate-950';
+  if (level >= 4) return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+  if (level >= 3) return 'border-sky-500/40 bg-sky-500/10 text-sky-300';
+  if (level >= 2) return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+  return 'border-slate-700 bg-slate-900 text-slate-300';
+}
+
 export function StatsBar({ songs, state }: StatsBarProps) {
   const [openList, setOpenList] = useState<SongListKey | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const completedNos = new Set(state.completedSongNos);
   const completedSongs = songs.filter((song) => completedNos.has(song.No));
   const playableSongs = songs.filter((song) => canPlaySong(song, state.skillLevels).ok);
+  const learnedSkills = Object.entries(state.skillLevels)
+    .filter(([, level]) => level > 0)
+    .map(([skill, level]) => ({
+      skill,
+      level,
+      relatedSongs: completedSongs.filter((song) => getAcquiredSkills(song).includes(skill)),
+    }))
+    .sort(
+      (a, b) =>
+        b.level - a.level ||
+        b.relatedSongs.length - a.relatedSongs.length ||
+        a.skill.localeCompare(b.skill, 'ja'),
+    );
+  const selectedSkillData = learnedSkills.find(({ skill }) => skill === selectedSkill);
   const total = songs.length;
   const totalMin = state.sessions.reduce((sum, session) => sum + session.durationMin, 0);
   const totalSessions = state.sessions.length;
@@ -107,6 +130,76 @@ export function StatsBar({ songs, state }: StatsBarProps) {
           );
         })}
       </div>
+
+      <section className="mt-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-400">
+              <BadgeCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-black text-slate-100">身についたスキル</h3>
+              <p className="mt-0.5 text-xs text-slate-500">スキルを押すと関連する習得曲を表示</p>
+            </div>
+          </div>
+          <span className="shrink-0 text-sm font-bold text-emerald-400">{learnedSkills.length}個</span>
+        </div>
+
+        {learnedSkills.length === 0 ? (
+          <div className="mt-4 rounded-lg bg-slate-950/70 px-4 py-6 text-center">
+            <p className="text-sm font-bold text-slate-400">曲を習得するとスキルが追加されます</p>
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {learnedSkills.map(({ skill, level }) => {
+              const selected = selectedSkill === skill;
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => setSelectedSkill(selected ? null : skill)}
+                  className={'flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ' + getSkillTone(level, selected)}
+                  aria-pressed={selected}
+                >
+                  <span className="text-sm font-bold">{skill}</span>
+                  <span className={'text-[11px] font-black ' + (selected ? 'text-slate-900/70' : 'opacity-70')}>
+                    Lv.{level}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedSkillData && (
+          <div className="mt-4 border-t border-slate-800 pt-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h4 className="truncate text-sm font-black text-slate-200">{selectedSkillData.skill}を身につけた曲</h4>
+              <span className="shrink-0 text-xs font-bold text-slate-500">{selectedSkillData.relatedSongs.length}曲</span>
+            </div>
+
+            {selectedSkillData.relatedSongs.length === 0 ? (
+              <p className="mt-3 rounded-lg bg-slate-950/70 px-3 py-4 text-sm text-slate-500">
+                初期スキルまたは手動で登録したスキルです
+              </p>
+            ) : (
+              <div className="mt-3 divide-y divide-slate-800 overflow-hidden rounded-lg bg-slate-950/70">
+                {selectedSkillData.relatedSongs.map((song) => (
+                  <div key={song.No} className="flex items-center gap-3 px-3 py-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-900 text-xs font-black text-slate-500">
+                      {song.No}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-100">{song.曲名}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">{song.アーティスト}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       {openList && (
         <section id="record-song-list" className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
