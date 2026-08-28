@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const csvPath = path.join(root, 'data', 'songs.csv');
+const skillsCsvPath = path.join(root, 'data', 'skills.csv');
 const outputPath = path.join(root, 'src', 'data', 'generatedSongs.ts');
 const checkOnly = process.argv.includes('--check');
 
@@ -79,6 +80,15 @@ function integer(value, label, rowNo, minimum, maximum, errors) {
   return parsed;
 }
 
+const skillRaw = (await fs.readFile(skillsCsvPath, 'utf8')).replace(/^\uFEFF/, '');
+const skillRows = parseCsv(skillRaw).filter((row) => row.some((cell) => cell.trim()));
+const skillHeaders = skillRows.shift() ?? [];
+const skillNameColumn = skillHeaders.indexOf('スキル名');
+if (skillNameColumn < 0) throw new Error('skills.csvにスキル名列がありません。');
+const knownSkills = new Set(
+  skillRows.map((row) => row[skillNameColumn]?.trim()).filter(Boolean)
+);
+
 const raw = (await fs.readFile(csvPath, 'utf8')).replace(/^\uFEFF/, '');
 const parsedRows = parseCsv(raw).filter((row) => row.some((cell) => cell.trim()));
 const headers = parsedRows.shift() ?? [];
@@ -112,6 +122,15 @@ const songs = records.map(({ rowNo, values }) => {
 
   for (const field of ['曲名', 'アーティスト', 'カテゴリ', 'ルーツ', '主スキル']) {
     if (!values[field]) errors.push(`CSV ${rowNo}行目: ${field}が空欄です。`);
+  }
+
+  for (const field of ['主スキル', '必須スキル', '習得スキル']) {
+    const referencedSkills = values[field].split(/[・、,/\s]+/).filter(Boolean);
+    for (const skill of referencedSkills) {
+      if (!knownSkills.has(skill)) {
+        errors.push(`CSV ${rowNo}行目: ${field}の「${skill}」がskills.csvにありません。`);
+      }
+    }
   }
 
   if (!categoryOptions.has(values.カテゴリ)) {
