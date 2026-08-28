@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "songs:build": "node scripts/build-song-data.mjs",
+    "songs:check": "node scripts/build-song-data.mjs --check",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
