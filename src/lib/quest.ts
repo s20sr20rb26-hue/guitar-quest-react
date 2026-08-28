@@ -10,6 +10,8 @@ export interface PracticeSession {
   date: string;
   songNo: number;
   songName: string;
+  artist?: string;
+  artworkUrl?: string;
   durationMin: number;
   memo: string;
   rating: number;
