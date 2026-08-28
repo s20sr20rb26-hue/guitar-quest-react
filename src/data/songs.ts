@@ -1,17 +1,15 @@
 import { GENERATED_SONGS } from '@/data/generatedSongs';
 
 export const ROUTE_OPTIONS: string[] = [
-  '邦ロック定番',
-  'J-pop',
-  'けいおん',
+  '邦楽ロック',
+  'J-POP',
+  'けいおん!',
   'アニソン/ボカロ',
   '洋楽ロック',
   'カッティング/ファンク',
-  'ブルース',
-  '東京事変/オルタナ',
+  'ブルース/R&R',
   'R&B/フュージョン',
-  'ラウド',
-  '未分類',
+  '民謡',
 ];
 
 export const SKILL_CATEGORIES = [
