@@ -44,6 +44,7 @@ export function CoursesTab({ songs, state, onToggleComplete, onLogSession }: Cou
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+        <h2 className="mb-3 text-lg font-black text-slate-100">エチュード検索</h2>
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
