@@ -57,17 +57,18 @@ export interface QuestState {
   weekStartedAt: string | null;
   sessions: PracticeSession[];
   skillLevels: Record<string, number>;
+  skillBaselineRemoved: boolean;
   livePlans: LivePlan[];
   activeLivePlanId: string | null;
 }
 
 export const DEFAULT_SKILL_LEVELS: Record<string, number> = {
-  'ピッキング': 1,
+  'ピッキング': 0,
   'パワーコード': 0,
   'ローコード': 0,
   'コードチェンジ': 0,
   '単音リフ': 0,
-  '8ビート': 1,
+  '8ビート': 0,
   '16ビート': 0,
   'カッティング': 0,
   '左手ミュート': 0,
@@ -152,6 +153,18 @@ function makeInitialLivePlan(): LivePlan {
   return createLivePlan('次のライブ');
 }
 
+function normalizeSkillLevels(
+  storedLevels: Record<string, number> | undefined,
+  removeLegacyBaseline: boolean
+): Record<string, number> {
+  const levels = { ...DEFAULT_SKILL_LEVELS, ...storedLevels };
+  if (!removeLegacyBaseline) return levels;
+
+  levels['ピッキング'] = Math.max(0, (levels['ピッキング'] ?? 0) - 1);
+  levels['8ビート'] = Math.max(0, (levels['8ビート'] ?? 0) - 1);
+  return levels;
+}
+
 export function loadState(): QuestState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -174,7 +187,8 @@ export function loadState(): QuestState {
         weeklySongNo: parsed.weeklySongNo ?? null,
         weekStartedAt: parsed.weekStartedAt ?? null,
         sessions: parsed.sessions ?? [],
-        skillLevels: { ...DEFAULT_SKILL_LEVELS, ...parsed.skillLevels },
+        skillLevels: normalizeSkillLevels(parsed.skillLevels, parsed.skillBaselineRemoved !== true),
+        skillBaselineRemoved: true,
         livePlans,
         activeLivePlanId: savedActiveLive?.id ?? availableLive?.id ?? null,
       };
@@ -192,6 +206,7 @@ export function loadState(): QuestState {
     weekStartedAt: null,
     sessions: [],
     skillLevels: { ...DEFAULT_SKILL_LEVELS },
+    skillBaselineRemoved: true,
     livePlans: [initialLive],
     activeLivePlanId: initialLive.id,
   };
