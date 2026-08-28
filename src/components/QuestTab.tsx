@@ -47,10 +47,17 @@ export function QuestTab({
   onSetWeeklySong,
 }: QuestTabProps) {
   const completed = new Set(state.completedSongNos);
-  const recommended = recommendNextSongs(songs, state, 6);
-  const weeklySong = songs.find((song) => song.No === state.weeklySongNo) ?? recommended[0];
+  const availableCourses = new Set(songs.map((song) => song.推奨ルート));
+  const validGoal = state.currentGoal && availableCourses.has(state.currentGoal) ? state.currentGoal : null;
+  const selectedCourse = state.favoriteRoutes.find((route) => availableCourses.has(route)) ?? validGoal;
+  const recommendationState: QuestState = selectedCourse
+    ? { ...state, currentGoal: selectedCourse, favoriteRoutes: [selectedCourse] }
+    : { ...state, currentGoal: null, favoriteRoutes: [] };
+  const recommended = recommendNextSongs(songs, recommendationState, 6);
+  const weeklySong = songs.find(
+    (song) => song.No === state.weeklySongNo && (!selectedCourse || song.推奨ルート === selectedCourse),
+  ) ?? recommended[0];
   const week = getWeekProgress(state.weekStartedAt);
-  const selectedCourse = state.favoriteRoutes[0] ?? state.currentGoal ?? null;
   const courseCopy = selectedCourse ? COURSE_COPY[selectedCourse] : null;
 
   const routeCounts = ROUTE_OPTIONS.map((route) => {
@@ -59,7 +66,7 @@ export function QuestTab({
     return { route, total: routeSongs.length, done };
   }).filter((r) => r.total > 0);
 
-  if (state.favoriteRoutes.length === 0) {
+  if (!selectedCourse) {
     return (
       <div className="space-y-5">
         <section className="rounded-2xl bg-gradient-to-br from-emerald-500/30 via-zinc-900 to-black p-5 shadow-2xl shadow-black/40 sm:p-7">
