@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Gauge, RotateCcw, Search, Star } from 'lucide-react';
+import { Gauge, RotateCcw, Search } from 'lucide-react';
 import type { QuestState } from '@/lib/quest';
-import { DEFAULT_SKILL_LEVELS } from '@/lib/quest';
-import { SKILL_CATEGORIES } from '@/data/songs';
+import { SKILL_DEFINITIONS, SKILL_GROUPS } from '@/data/skills';
 
 interface SkillsTabProps {
   state: QuestState;
@@ -10,21 +9,14 @@ interface SkillsTabProps {
   onResetAll: () => void;
 }
 
-const SKILL_GROUPS: { label: string; keywords: string[] }[] = [
-  { label: '基礎', keywords: ['ピッキング', 'パワーコード', 'ローコード', 'コードチェンジ', 'バレーコード', '単音リフ', 'テンポキープ'] },
-  { label: 'リズム・バッキング', keywords: ['8ビート', '16ビート', 'ストローク', 'コードストローク', 'カッティング', 'コードカッティング', '単音カッティング', '左手ミュート', 'ブリッジミュート'] },
-  { label: 'リード・テクニック', keywords: ['オクターブ奏法', 'チョーキング', 'ハンマリング・プリング', 'レガート', 'ギターソロ', '高速フレーズ', 'オルタネイト'] },
-  { label: 'ジャンル・語彙', keywords: ['ブルースフレーズ', 'ペンタ', 'シャッフル', 'ジミヘンコード', 'フュージョン', 'オルタナリフ', '即興演奏', 'セッション'] },
-  { label: 'アンサンブル・音作り', keywords: ['コードワーク', 'アンサンブル', '歌伴', '歪み', 'ハイゲイン', '深い歪み', 'ディレイ', 'リバーブ', '空間系', 'ドロップD', 'テンション', 'アルペジオ'] },
-];
-
+const ALL_SKILLS = SKILL_DEFINITIONS.map(({ name }) => name);
 const LEVEL_LABELS = ['未習得', '入門', '初級', '中級', '上級'];
 
 export function SkillsTab({ state, onUpdateSkill, onResetAll }: SkillsTabProps) {
   const [search, setSearch] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const allSkills = Object.keys(DEFAULT_SKILL_LEVELS);
+  const allSkills = ALL_SKILLS;
 
   const filteredSkills = useMemo(() => {
     if (!search.trim()) return allSkills;
@@ -34,7 +26,7 @@ export function SkillsTab({ state, onUpdateSkill, onResetAll }: SkillsTabProps) 
 
   const grouped = useMemo(() => {
     return SKILL_GROUPS.map((group) => {
-      const skills = filteredSkills.filter((s) => group.keywords.includes(s));
+      const skills = filteredSkills.filter((skill) => group.skills.includes(skill));
       return { ...group, skills };
     }).filter((g) => g.skills.length > 0);
   }, [filteredSkills]);
