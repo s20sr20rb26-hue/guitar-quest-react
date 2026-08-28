@@ -1,4 +1,6 @@
 import { BarChart3, Clock3, Guitar, MessageSquare, Star, Trash2 } from 'lucide-react';
+import { SongArtwork } from '@/components/SongArtwork';
+import { INITIAL_SONGS } from '@/data/songs';
 import type { PracticeSession, QuestState } from '@/lib/quest';
 
 interface HistoryTabProps {
@@ -29,6 +31,9 @@ function formatGroupDate(key: string, todayKey: string): string {
 
 export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
   const sessions = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const externalSongsById = new Map(
+    state.livePlans.flatMap((plan) => plan.externalSongs).map((song) => [song.id, song])
+  );
   const now = new Date();
   const todayKey = dateKey(now);
 
@@ -147,11 +152,19 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                     {daySessions.map((session) => {
                       const time = new Date(session.date);
                       const timeLabel = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+                      const databaseSong = INITIAL_SONGS.find((song) => song.No === session.songNo);
+                      const externalSong = session.externalSongId ? externalSongsById.get(session.externalSongId) : undefined;
+                      const artist = databaseSong?.アーティスト || externalSong?.artist || '';
                       return (
                         <article key={session.id} className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 hover:border-zinc-700">
                           <div className="flex items-start gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-emerald-950 text-emerald-400">
-                              <Guitar className="h-5 w-5" />
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-950 text-emerald-400">
+                              <SongArtwork
+                                title={session.songName}
+                                artist={artist}
+                                src={externalSong?.artworkUrl}
+                                fallback={<Guitar className="h-5 w-5" />}
+                              />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
