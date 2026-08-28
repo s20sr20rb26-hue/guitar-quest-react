@@ -81,6 +81,26 @@ export async function updateProfile(userId: string, username: string, avatarUrl?
   };
 }
 
+export async function uploadProfileAvatar(userId: string, file: File): Promise<string> {
+  const path = `${userId}/avatar`;
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: '3600',
+    });
+
+  if (error) throw error;
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+export async function deleteProfileAvatar(userId: string): Promise<void> {
+  const { error } = await supabase.storage.from('avatars').remove([`${userId}/avatar`]);
+  if (error) throw error;
+}
+
 export async function fetchTimeline(): Promise<TimelinePost[]> {
   const { data, error } = await supabase
     .from('practice_posts')
