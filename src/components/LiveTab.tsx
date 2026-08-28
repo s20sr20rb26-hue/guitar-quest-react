@@ -8,10 +8,10 @@ import {
   ExternalLink,
   Guitar,
   Link2,
-  ListPlus,
   LoaderCircle,
   MoreVertical,
   Music2,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -290,30 +290,43 @@ export function LiveTab({
                     type="button"
                     onClick={() => setShowPlaylistEditor((current) => !current)}
                     aria-expanded={showPlaylistEditor}
-                    aria-label={showPlaylistEditor ? 'プレイリスト編集を閉じる' : 'プレイリストを編集・追加'}
+                    aria-label={showPlaylistEditor ? 'ライブ編集を閉じる' : 'ライブを編集'}
                     className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-800 hover:text-white"
                   >
-                    {showPlaylistEditor ? <X className="h-3.5 w-3.5" /> : <ListPlus className="h-3.5 w-3.5" />}
-                    {showPlaylistEditor ? '閉じる' : '編集・追加'}
+                    {showPlaylistEditor ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                    {showPlaylistEditor ? '閉じる' : '編集'}
                   </button>
                 </div>
-                <input
-                  value={activeLivePlan.title}
-                  onChange={(event) => onUpdateLivePlan({ title: event.target.value })}
-                  onBlur={(event) => onUpdateLivePlan({ title: event.target.value.trim() || '無題のライブ' })}
-                  className="min-w-0 w-full bg-transparent text-3xl font-black leading-tight text-white outline-none placeholder:text-zinc-600 sm:text-5xl"
-                  placeholder="〇〇ライブ"
-                />
+                {showPlaylistEditor ? (
+                  <input
+                    value={activeLivePlan.title}
+                    onChange={(event) => onUpdateLivePlan({ title: event.target.value })}
+                    onBlur={(event) => onUpdateLivePlan({ title: event.target.value.trim() || '無題のライブ' })}
+                    className="min-h-12 min-w-0 w-full rounded-lg border border-white/15 bg-black/20 px-3 text-2xl font-black leading-tight text-white outline-none placeholder:text-zinc-600 focus:border-emerald-400 sm:text-4xl"
+                    placeholder="〇〇ライブ"
+                  />
+                ) : (
+                  <h2 className="min-w-0 break-words text-3xl font-black leading-tight text-white sm:text-5xl">
+                    {activeLivePlan.title}
+                  </h2>
+                )}
                 <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 text-sm text-zinc-300 sm:flex sm:flex-wrap">
-                  <label className="col-span-2 flex min-w-0 items-center gap-2 rounded-lg bg-white/10 px-3 py-2 sm:col-auto sm:rounded-full">
-                    <CalendarDays className="h-4 w-4 text-emerald-300" />
-                    <input
-                      type="date"
-                      value={activeLivePlan.date}
-                      onChange={(event) => onUpdateLivePlan({ date: event.target.value })}
-                      className="min-w-0 w-full bg-transparent text-zinc-100 outline-none sm:w-auto"
-                    />
-                  </label>
+                  {showPlaylistEditor ? (
+                    <label className="col-span-2 flex min-w-0 items-center gap-2 rounded-lg bg-white/10 px-3 py-2 sm:col-auto sm:rounded-full">
+                      <CalendarDays className="h-4 w-4 text-emerald-300" />
+                      <input
+                        type="date"
+                        value={activeLivePlan.date}
+                        onChange={(event) => onUpdateLivePlan({ date: event.target.value })}
+                        className="min-w-0 w-full bg-transparent text-zinc-100 outline-none sm:w-auto"
+                      />
+                    </label>
+                  ) : (
+                    <span className="col-span-2 flex min-w-0 items-center gap-2 rounded-lg bg-white/10 px-3 py-2 sm:col-auto sm:rounded-full">
+                      <CalendarDays className="h-4 w-4 text-emerald-300" />
+                      {formatLiveDate(activeLivePlan.date)}
+                    </span>
+                  )}
                   <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">{totalSongs}曲</span>
                   <span className="rounded-lg bg-white/10 px-3 py-2 text-center sm:rounded-full">練習 {totalMinutes}分</span>
                 </div>
@@ -346,7 +359,7 @@ export function LiveTab({
             <div className="min-w-0 overflow-hidden border-t border-white/5 px-3 pb-4 pt-3 sm:px-5 sm:pb-6 sm:pt-4">
             {totalSongs === 0 && (
               <div className="border-y border-zinc-900 px-4 py-10 text-center text-base text-zinc-500">
-                「編集・追加」から曲を登録できます。
+                「編集」から曲を登録できます。
               </div>
             )}
 
