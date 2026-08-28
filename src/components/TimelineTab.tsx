@@ -1,6 +1,24 @@
-import { Clock3, Guitar, RefreshCw, Sparkles, Star } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { fetchTimeline, type TimelinePost } from '@/lib/social';
+import {
+  Clock3,
+  Guitar,
+  Heart,
+  LoaderCircle,
+  MessageCircle,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Star,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  createPostComment,
+  deletePostComment,
+  fetchTimeline,
+  setPostLike,
+  type TimelinePost,
+} from '@/lib/social';
 import { supabase } from '@/lib/supabase';
 
 interface TimelineTabProps {
@@ -28,6 +46,17 @@ function formatPostDate(value: string): string {
   }).format(date);
 }
 
+function formatCommentDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 function accountInitial(username: string): string {
   return Array.from(username.trim())[0]?.toUpperCase() || 'G';
 }
@@ -37,20 +66,26 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [likePendingPostId, setLikePendingPostId] = useState<string | null>(null);
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
 
   const loadPosts = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     setError('');
     try {
-      setPosts(await fetchTimeline());
+      setPosts(await fetchTimeline(currentUserId));
     } catch {
       setError('タイムラインを読み込めませんでした');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     void loadPosts();
@@ -64,12 +99,83 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
         { event: '*', schema: 'public', table: 'practice_posts' },
         () => void loadPosts(true)
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'post_likes' },
+        () => void loadPosts(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'post_comments' },
+        () => void loadPosts(true)
+      )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [loadPosts]);
+
+  const toggleLike = async (post: TimelinePost) => {
+    if (likePendingPostId) return;
+    const nextLiked = !post.likedByCurrentUser;
+    setLikePendingPostId(post.id);
+    setActionError('');
+    setPosts((current) => current.map((item) => item.id === post.id
+      ? {
+          ...item,
+          likedByCurrentUser: nextLiked,
+          likesCount: Math.max(0, item.likesCount + (nextLiked ? 1 : -1)),
+        }
+      : item));
+
+    try {
+      await setPostLike(post.id, currentUserId, nextLiked);
+    } catch {
+      setPosts((current) => current.map((item) => item.id === post.id
+        ? { ...item, likedByCurrentUser: post.likedByCurrentUser, likesCount: post.likesCount }
+        : item));
+      setActionError('いいねを更新できませんでした');
+    } finally {
+      setLikePendingPostId(null);
+    }
+  };
+
+  const toggleComments = (postId: string) => {
+    setOpenCommentsPostId((current) => current === postId ? null : postId);
+    setCommentDraft('');
+    setDeleteCommentId(null);
+    setActionError('');
+  };
+
+  const submitComment = async (event: FormEvent<HTMLFormElement>, postId: string) => {
+    event.preventDefault();
+    const body = commentDraft.trim();
+    if (!body || commentSubmitting) return;
+
+    setCommentSubmitting(true);
+    setActionError('');
+    try {
+      await createPostComment(postId, currentUserId, body);
+      setCommentDraft('');
+      await loadPosts(true);
+    } catch {
+      setActionError('コメントを送信できませんでした');
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const removeComment = async (commentId: string) => {
+    setActionError('');
+    try {
+      await deletePostComment(commentId, currentUserId);
+      setDeleteCommentId(null);
+      await loadPosts(true);
+    } catch {
+      setActionError('コメントを削除できませんでした');
+    }
+  };
 
   return (
     <section className="mx-auto max-w-3xl">
@@ -89,6 +195,15 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
           <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
       </header>
+
+      {actionError && (
+        <div className="fixed left-1/2 top-20 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-lg bg-red-950 px-4 py-3 text-sm font-bold text-red-100 shadow-xl" role="alert">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-red-900" aria-label="閉じる">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex min-h-64 items-center justify-center text-sm font-bold text-zinc-500">
@@ -111,59 +226,148 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
         </div>
       ) : (
         <div className="divide-y divide-zinc-800">
-          {posts.map((post) => (
-            <article key={post.id} className="py-5 sm:py-6">
-              <div className="flex items-center gap-3">
-                {post.avatarUrl ? (
-                  <img src={post.avatarUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-black ${post.userId === currentUserId ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-200'}`}>
-                    {accountInitial(post.username)}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-black text-white">
-                    {post.username}
-                    {post.userId === currentUserId && <span className="ml-2 text-xs text-emerald-400">あなた</span>}
-                  </p>
-                  <time className="text-xs font-bold text-zinc-600" dateTime={post.practicedAt}>{formatPostDate(post.practicedAt)}</time>
-                </div>
-              </div>
-
-              <div className="ml-0 mt-3 rounded-lg bg-zinc-900 p-4 sm:ml-14">
-                <div className="flex gap-4">
-                  {post.artworkUrl ? (
-                    <img src={post.artworkUrl} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+          {posts.map((post) => {
+            const commentsOpen = openCommentsPostId === post.id;
+            return (
+              <article key={post.id} className="py-5 sm:py-6">
+                <div className="flex items-center gap-3">
+                  {post.avatarUrl ? (
+                    <img src={post.avatarUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-zinc-800 text-emerald-400">
-                      <Guitar className="h-7 w-7" />
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-black ${post.userId === currentUserId ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-200'}`}>
+                      {accountInitial(post.username)}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-black text-white">{post.songName}</p>
-                    {post.artist && <p className="truncate text-sm font-bold text-zinc-500">{post.artist}</p>}
-                    <p className="mt-2 flex items-center gap-2 text-xl font-black text-white">
-                      <Clock3 className="h-5 w-5 text-emerald-400" />
-                      {formatDuration(post.durationMin)}
+                    <p className="truncate text-base font-black text-white">
+                      {post.username}
+                      {post.userId === currentUserId && <span className="ml-2 text-xs text-emerald-400">あなた</span>}
                     </p>
+                    <time className="text-xs font-bold text-zinc-600" dateTime={post.practicedAt}>{formatPostDate(post.practicedAt)}</time>
                   </div>
                 </div>
-              </div>
 
-              {(post.memo || post.focus) && (
-                <div className="ml-0 mt-3 sm:ml-14">
-                  {post.memo && <p className="whitespace-pre-wrap text-base leading-relaxed text-zinc-200">{post.memo}</p>}
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-500">
-                    {post.focus && <span className="rounded-full bg-zinc-900 px-3 py-1.5">{post.focus}</span>}
-                    <span className="flex items-center gap-1 text-amber-400" aria-label={`自己評価 ${post.rating}`}>
-                      <Star className="h-4 w-4 fill-current" />
-                      {post.rating}
-                    </span>
+                <div className="ml-0 mt-3 rounded-lg bg-zinc-900 p-4 sm:ml-14">
+                  <div className="flex gap-4">
+                    {post.artworkUrl ? (
+                      <img src={post.artworkUrl} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-zinc-800 text-emerald-400">
+                        <Guitar className="h-7 w-7" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-black text-white">{post.songName}</p>
+                      {post.artist && <p className="truncate text-sm font-bold text-zinc-500">{post.artist}</p>}
+                      <p className="mt-2 flex items-center gap-2 text-xl font-black text-white">
+                        <Clock3 className="h-5 w-5 text-emerald-400" />
+                        {formatDuration(post.durationMin)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
-            </article>
-          ))}
+
+                {(post.memo || post.focus) && (
+                  <div className="ml-0 mt-3 sm:ml-14">
+                    {post.memo && <p className="whitespace-pre-wrap text-base leading-relaxed text-zinc-200">{post.memo}</p>}
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-500">
+                      {post.focus && <span className="rounded-full bg-zinc-900 px-3 py-1.5">{post.focus}</span>}
+                      <span className="flex items-center gap-1 text-amber-400" aria-label={`自己評価 ${post.rating}`}>
+                        <Star className="h-4 w-4 fill-current" />
+                        {post.rating}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="ml-0 mt-4 flex items-center gap-2 border-t border-zinc-900 pt-2 sm:ml-14">
+                  <button
+                    type="button"
+                    onClick={() => void toggleLike(post)}
+                    disabled={likePendingPostId === post.id}
+                    aria-pressed={post.likedByCurrentUser}
+                    aria-label={post.likedByCurrentUser ? 'いいねを取り消す' : 'いいね'}
+                    className={`flex min-h-10 min-w-16 items-center justify-center gap-2 rounded-full px-3 text-sm font-black transition-colors ${post.likedByCurrentUser ? 'bg-rose-950/60 text-rose-400' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                  >
+                    <Heart className={`h-5 w-5 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
+                    {post.likesCount}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleComments(post.id)}
+                    aria-expanded={commentsOpen}
+                    aria-label={`コメント ${post.comments.length}件`}
+                    className={`flex min-h-10 min-w-16 items-center justify-center gap-2 rounded-full px-3 text-sm font-black transition-colors ${commentsOpen ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    {post.comments.length}
+                  </button>
+                </div>
+
+                {commentsOpen && (
+                  <div className="ml-0 mt-3 border-t border-zinc-900 pt-4 sm:ml-14">
+                    {post.comments.length === 0 ? (
+                      <p className="py-3 text-center text-sm font-bold text-zinc-600">まだコメントはありません</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {post.comments.map((comment) => (
+                          <div key={comment.id} className="flex items-start gap-3">
+                            {comment.avatarUrl ? (
+                              <img src={comment.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                            ) : (
+                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${comment.userId === currentUserId ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-200'}`}>
+                                {accountInitial(comment.username)}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 items-baseline gap-2">
+                                <p className="truncate text-sm font-black text-white">{comment.username}</p>
+                                <time className="shrink-0 text-[11px] font-bold text-zinc-600" dateTime={comment.createdAt}>{formatCommentDate(comment.createdAt)}</time>
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">{comment.body}</p>
+                            </div>
+                            {comment.userId === currentUserId && (
+                              deleteCommentId === comment.id ? (
+                                <div className="flex shrink-0 items-center gap-1">
+                                  <button type="button" onClick={() => void removeComment(comment.id)} className="min-h-9 rounded-full bg-red-950 px-3 text-xs font-black text-red-200 hover:bg-red-900">削除</button>
+                                  <button type="button" onClick={() => setDeleteCommentId(null)} className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-white" aria-label="削除をやめる"><X className="h-4 w-4" /></button>
+                                </div>
+                              ) : (
+                                <button type="button" onClick={() => setDeleteCommentId(comment.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-red-950/50 hover:text-red-300" aria-label="コメントを削除"><Trash2 className="h-4 w-4" /></button>
+                              )
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <form onSubmit={(event) => void submitComment(event, post.id)} className="mt-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2">
+                      <label className="min-w-0">
+                        <span className="sr-only">コメントを入力</span>
+                        <textarea
+                          value={commentDraft}
+                          onChange={(event) => setCommentDraft(event.target.value)}
+                          maxLength={500}
+                          rows={2}
+                          autoFocus
+                          placeholder="コメントを書く"
+                          className="block min-h-12 w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-white outline-none placeholder:text-zinc-700 focus:border-emerald-500"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        disabled={!commentDraft.trim() || commentSubmitting}
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500 text-black hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-600"
+                        aria-label="コメントを送信"
+                      >
+                        {commentSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
