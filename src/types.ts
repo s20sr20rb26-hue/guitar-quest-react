@@ -7,6 +7,7 @@ export interface Song {
   エチュード適性: number;
   ジャンル定番度: number;
   推奨ルート: string;
+  ルーツ: string;
   主スキル: string;
   必須スキル: string;
   習得スキル: string;
@@ -20,17 +21,15 @@ export interface Song {
 }
 
 export type RouteKey =
-  | '邦ロック定番'
-  | 'J-pop'
-  | 'けいおん'
+  | '邦楽ロック'
+  | 'J-POP'
+  | 'けいおん!'
   | 'アニソン/ボカロ'
   | '洋楽ロック'
   | 'カッティング/ファンク'
-  | 'ブルース'
-  | '東京事変/オルタナ'
+  | 'ブルース/R&R'
   | 'R&B/フュージョン'
-  | 'ラウド'
-  | '未分類';
+  | '民謡';
 
 export interface SkillCategory {
   key: string;
