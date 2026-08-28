@@ -1,11 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Archive,
   ArchiveRestore,
+  ArrowLeft,
   CalendarDays,
   Clock3,
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
   ExternalLink,
   Guitar,
   Link2,
@@ -21,6 +21,11 @@ import {
 import type { Song } from '@/types';
 import type { ExternalSong, LivePlan, PracticeSession } from '@/lib/quest';
 import { SongArtwork } from '@/components/SongArtwork';
+import {
+  getAppHistoryState,
+  pushAppHistoryView,
+  returnFromAppHistoryView,
+} from '@/lib/appHistory';
 
 interface ItunesTrack {
   trackId: number;
@@ -115,7 +120,7 @@ interface LiveTabProps {
   activeLivePlan: LivePlan | null;
   sessions: PracticeSession[];
   onSelectLivePlan: (id: string) => void;
-  onCreateLivePlan: (title: string, date: string) => void;
+  onCreateLivePlan: (title: string, date: string) => string;
   onUpdateLivePlan: (patch: Partial<LivePlan>) => void;
   onArchiveLivePlan: (id: string) => void;
   onRestoreLivePlan: (id: string) => void;
@@ -126,12 +131,13 @@ interface LiveTabProps {
   onLogSession: (song: Song) => void;
   onLogExternalSession: (song: ExternalSong) => void;
   onLogLiveSession: (plan: LivePlan) => void;
+  onDetailViewChange: (open: boolean) => void;
 }
 
 export function LiveTab({
   songs,
   livePlans,
-  activeLivePlan,
+  activeLivePlan: appActiveLivePlan,
   sessions,
   onSelectLivePlan,
   onCreateLivePlan,
@@ -145,8 +151,15 @@ export function LiveTab({
   onLogSession,
   onLogExternalSession,
   onLogLiveSession,
+  onDetailViewChange,
 }: LiveTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [detailPlanId, setDetailPlanId] = useState<string | null>(() => {
+    const historyState = getAppHistoryState();
+    return historyState.guitarQuestView === 'live-detail' && typeof historyState.livePlanId === 'string'
+      ? historyState.livePlanId
+      : null;
+  });
   const [showPlaylistEditor, setShowPlaylistEditor] = useState(false);
   const [openSongMenu, setOpenSongMenu] = useState<string | null>(null);
   const [newLiveTitle, setNewLiveTitle] = useState('');
@@ -158,7 +171,6 @@ export function LiveTab({
   const [itunesResults, setItunesResults] = useState<ItunesTrack[]>([]);
   const [itunesLoading, setItunesLoading] = useState(false);
   const [itunesError, setItunesError] = useState('');
-  const [expandedArchiveId, setExpandedArchiveId] = useState<string | null>(null);
   const [deleteArchiveId, setDeleteArchiveId] = useState<string | null>(null);
 
   const activeLives = useMemo(
@@ -171,6 +183,10 @@ export function LiveTab({
       .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? '')),
     [livePlans]
   );
+  const activeLivePlan = detailPlanId
+    ? livePlans.find((plan) => plan.id === detailPlanId) ?? appActiveLivePlan
+    : null;
+  const isArchived = Boolean(activeLivePlan?.archivedAt);
   const liveSongs = activeLivePlan
     ? activeLivePlan.songNos
         .map((no) => songs.find((song) => song.No === no))
@@ -185,14 +201,56 @@ export function LiveTab({
   const totalSongs = activeLivePlan ? liveSongs.length + activeLivePlan.externalSongs.length : 0;
   const totalMinutes = activeLivePlan ? getPlanMinutes(activeLivePlan, sessions) : 0;
 
+  useEffect(() => {
+    onDetailViewChange(Boolean(detailPlanId));
+    return () => onDetailViewChange(false);
+  }, [detailPlanId, onDetailViewChange]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const historyState = getAppHistoryState();
+      const historyPlanId = historyState.livePlanId;
+      if (historyState.guitarQuestView === 'live-detail' && typeof historyPlanId === 'string') {
+        setDetailPlanId(historyPlanId);
+      } else {
+        setDetailPlanId(null);
+        setShowPlaylistEditor(false);
+        setOpenSongMenu(null);
+        setDeleteArchiveId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openLiveDetail = (plan: LivePlan) => {
+    if (!plan.archivedAt) onSelectLivePlan(plan.id);
+    setShowPlaylistEditor(false);
+    setOpenSongMenu(null);
+    setDeleteArchiveId(null);
+    pushAppHistoryView('live-detail', { livePlanId: plan.id });
+    setDetailPlanId(plan.id);
+  };
+
+  const closeLiveDetail = () => {
+    setDetailPlanId(null);
+    setShowPlaylistEditor(false);
+    setOpenSongMenu(null);
+    setDeleteArchiveId(null);
+    returnFromAppHistoryView('live-detail');
+  };
+
   const createNewLive = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const title = newLiveTitle.trim();
     if (!title) return;
-    onCreateLivePlan(title, newLiveDate);
+    const newPlanId = onCreateLivePlan(title, newLiveDate);
     setNewLiveTitle('');
     setNewLiveDate('');
     setShowCreateForm(false);
+    pushAppHistoryView('live-detail', { livePlanId: newPlanId });
+    setDetailPlanId(newPlanId);
   };
 
   const addExternal = () => {
@@ -226,69 +284,158 @@ export function LiveTab({
     onAddExternalSong(track.trackName, track.artistName, track.trackViewUrl, track.artworkUrl100, track.collectionName);
   };
 
+  if (!activeLivePlan) {
+    return (
+      <div className="min-w-0 space-y-7 overflow-x-hidden">
+        <section>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black text-emerald-400">ライブ</p>
+              <h2 className="mt-1 text-2xl font-black text-white">ライブリスト</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((current) => !current)}
+              className="flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-emerald-500 px-4 text-sm font-black text-black hover:bg-emerald-400"
+            >
+              {showCreateForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showCreateForm ? '閉じる' : 'プレイリスト作成'}
+            </button>
+          </div>
+
+          {showCreateForm && (
+            <form onSubmit={createNewLive} className="mt-5 grid gap-3 border-y border-zinc-800 py-5 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+              <input
+                value={newLiveTitle}
+                onChange={(event) => setNewLiveTitle(event.target.value)}
+                placeholder="例：夏フェスライブ"
+                autoFocus
+                className="min-h-12 min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-base text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+              />
+              <input
+                type="date"
+                value={newLiveDate}
+                onChange={(event) => setNewLiveDate(event.target.value)}
+                className="min-h-12 min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-base text-white outline-none focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                disabled={!newLiveTitle.trim()}
+                className="min-h-12 rounded-full bg-zinc-100 px-5 text-sm font-black text-black hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
+              >
+                作成して開く
+              </button>
+            </form>
+          )}
+        </section>
+
+        <section aria-labelledby="upcoming-lives-title">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black text-emerald-400">UPCOMING</p>
+              <h2 id="upcoming-lives-title" className="mt-1 text-xl font-black text-white">開催前のライブ</h2>
+            </div>
+            <span className="text-sm font-bold text-zinc-500">{activeLives.length}件</span>
+          </div>
+
+          {activeLives.length === 0 ? (
+            <div className="border-y border-zinc-900 px-4 py-10 text-center">
+              <CalendarDays className="mx-auto h-8 w-8 text-zinc-800" />
+              <p className="mt-3 text-sm font-bold text-zinc-500">開催前のライブはありません</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-900 border-y border-zinc-900">
+              {activeLives.map((plan) => {
+                const songCount = plan.songNos.length + plan.externalSongs.length;
+                const practiceMinutes = getPlanMinutes(plan, sessions);
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => openLiveDetail(plan)}
+                    className="grid min-h-20 w-full grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-zinc-950"
+                    aria-label={plan.title + 'を開く'}
+                  >
+                    <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-950 text-emerald-400">
+                      <CalendarDays className="h-6 w-6" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-base font-black text-white">{plan.title}</span>
+                      <span className="mt-1 block truncate text-sm text-zinc-500">
+                        {formatLiveDate(plan.date)} ・ {songCount}曲 ・ 練習 {formatPracticeDuration(practiceMinutes)}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-zinc-700" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section aria-labelledby="past-lives-title">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black text-zinc-600">ARCHIVE</p>
+              <h2 id="past-lives-title" className="mt-1 text-xl font-black text-white">過去のライブ</h2>
+            </div>
+            <span className="text-sm font-bold text-zinc-500">{archivedLives.length}件</span>
+          </div>
+
+          {archivedLives.length === 0 ? (
+            <div className="border-y border-zinc-900 px-4 py-10 text-center">
+              <Archive className="mx-auto h-8 w-8 text-zinc-800" />
+              <p className="mt-3 text-sm font-bold text-zinc-600">終了したライブがここに残ります</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-900 border-y border-zinc-900">
+              {archivedLives.map((plan) => {
+                const songCount = plan.songNos.length + plan.externalSongs.length;
+                const practiceMinutes = getPlanMinutes(plan, sessions);
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => openLiveDetail(plan)}
+                    className="grid min-h-20 w-full grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-zinc-950"
+                    aria-label={plan.title + 'を振り返る'}
+                  >
+                    <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-900 text-zinc-500">
+                      <Archive className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-base font-black text-zinc-200">{plan.title}</span>
+                      <span className="mt-1 block truncate text-sm text-zinc-600">
+                        {formatLiveDate(plan.date)} ・ {songCount}曲 ・ 練習 {formatPracticeDuration(practiceMinutes)}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-zinc-700" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
-      <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase text-emerald-400">Live manager</p>
-            <h2 className="mt-1 text-xl font-black text-white">ライブを選ぶ</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCreateForm((current) => !current)}
-            className="flex min-h-11 items-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white"
-          >
-            {showCreateForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showCreateForm ? '閉じる' : '新しいライブ'}
-          </button>
+      <header className="flex items-center gap-3 border-b border-zinc-800 pb-4">
+        <button
+          type="button"
+          onClick={closeLiveDetail}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-300 hover:bg-zinc-900 hover:text-white"
+          aria-label="ライブリストに戻る"
+        >
+          <ArrowLeft className="h-6 w-6" />
+        </button>
+        <div className="min-w-0">
+          <p className="text-xs font-black text-emerald-400">ライブリスト</p>
+          <h2 className="truncate text-xl font-black text-white">{isArchived ? '過去のライブ' : 'ライブ詳細'}</h2>
         </div>
-
-        {activeLives.length > 0 ? (
-          <label className="mt-4 block">
-            <span className="sr-only">開催前のライブ</span>
-            <select
-              value={activeLivePlan?.id ?? ''}
-              onChange={(event) => onSelectLivePlan(event.target.value)}
-              className="min-h-12 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-base font-bold text-white outline-none focus:border-emerald-500"
-            >
-              {!activeLivePlan && <option value="">ライブを選択</option>}
-              {activeLives.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.title} ・ {formatLiveDate(plan.date)}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="mt-4 text-base text-zinc-400">開催前のライブはありません。</p>
-        )}
-
-        {showCreateForm && (
-          <form onSubmit={createNewLive} className="mt-4 grid gap-3 border-t border-zinc-800 pt-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
-            <input
-              value={newLiveTitle}
-              onChange={(event) => setNewLiveTitle(event.target.value)}
-              placeholder="例：夏フェスライブ"
-              autoFocus
-              className="min-h-12 min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-base text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-            />
-            <input
-              type="date"
-              value={newLiveDate}
-              onChange={(event) => setNewLiveDate(event.target.value)}
-              className="min-h-12 min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-base text-white outline-none focus:border-emerald-500"
-            />
-            <button
-              type="submit"
-              disabled={!newLiveTitle.trim()}
-              className="min-h-12 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500"
-            >
-              作成
-            </button>
-          </form>
-        )}
-      </section>
+      </header>
 
       {activeLivePlan ? (
         <>
@@ -297,19 +444,21 @@ export function LiveTab({
             <div className="min-w-0">
               <div className="min-w-0">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase text-emerald-300">Current live</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowPlaylistEditor((current) => !current)}
-                    aria-expanded={showPlaylistEditor}
-                    aria-label={showPlaylistEditor ? 'ライブ編集を閉じる' : 'ライブを編集'}
-                    className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-800 hover:text-white"
-                  >
-                    {showPlaylistEditor ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-                    {showPlaylistEditor ? '閉じる' : '編集'}
-                  </button>
+                  <p className="text-xs font-bold uppercase text-emerald-300">{isArchived ? 'Past live' : 'Current live'}</p>
+                  {!isArchived && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPlaylistEditor((current) => !current)}
+                      aria-expanded={showPlaylistEditor}
+                      aria-label={showPlaylistEditor ? 'ライブ編集を閉じる' : 'ライブを編集'}
+                      className="flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-800 hover:text-white"
+                    >
+                      {showPlaylistEditor ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                      {showPlaylistEditor ? '閉じる' : '編集'}
+                    </button>
+                  )}
                 </div>
-                {showPlaylistEditor ? (
+                {!isArchived && showPlaylistEditor ? (
                   <input
                     value={activeLivePlan.title}
                     onChange={(event) => onUpdateLivePlan({ title: event.target.value })}
@@ -323,7 +472,7 @@ export function LiveTab({
                   </h2>
                 )}
                 <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 text-sm text-zinc-300 sm:flex sm:flex-wrap">
-                  {showPlaylistEditor ? (
+                  {!isArchived && showPlaylistEditor ? (
                     <label className="col-span-2 flex min-w-0 items-center gap-2 rounded-lg bg-white/10 px-3 py-2 sm:col-auto sm:rounded-full">
                       <CalendarDays className="h-4 w-4 text-emerald-300" />
                       <input
@@ -345,7 +494,12 @@ export function LiveTab({
               </div>
             </div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              {daysLeft !== null ? (
+              {isArchived ? (
+                <div className="rounded-xl bg-black/35 p-4 sm:min-w-48">
+                  <p className="text-sm text-zinc-400">開催日</p>
+                  <p className="mt-1 text-xl font-black text-white">{formatLiveDate(activeLivePlan.date)}</p>
+                </div>
+              ) : daysLeft !== null ? (
                 <div className="rounded-xl bg-black/35 p-4 sm:min-w-48">
                   <p className="text-sm text-zinc-400">本番まで</p>
                   {daysLeft >= 0 ? (
@@ -357,31 +511,82 @@ export function LiveTab({
               ) : (
                 <p className="text-sm text-zinc-500">日付を入れると本番までの日数が表示されます。</p>
               )}
-              <div className="grid gap-2 sm:flex sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => onLogLiveSession(activeLivePlan)}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400"
-                >
-                  <Clock3 className="h-5 w-5" />
-                  ライブ練習を記録
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onArchiveLivePlan(activeLivePlan.id)}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-700 px-4 text-sm font-black text-zinc-200 hover:border-emerald-500 hover:text-white"
-                >
-                  <Archive className="h-4 w-4" />
-                  終了してアーカイブ
-                </button>
-              </div>
+
+              {isArchived ? (
+                <div className="grid gap-2 sm:flex sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => onRestoreLivePlan(activeLivePlan.id)}
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-black text-black hover:bg-white"
+                  >
+                    <ArchiveRestore className="h-4 w-4" />
+                    このライブを復元
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteArchiveId(activeLivePlan.id)}
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-red-950 px-4 text-sm font-black text-red-300 hover:bg-red-950/50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    削除
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-2 sm:flex sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => onLogLiveSession(activeLivePlan)}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400"
+                  >
+                    <Clock3 className="h-5 w-5" />
+                    ライブ練習を記録
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPlaylistEditor(false);
+                      onArchiveLivePlan(activeLivePlan.id);
+                    }}
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-700 px-4 text-sm font-black text-zinc-200 hover:border-emerald-500 hover:text-white"
+                  >
+                    <Archive className="h-4 w-4" />
+                    終了してアーカイブ
+                  </button>
+                </div>
+              )}
             </div>
+
+            {isArchived && deleteArchiveId === activeLivePlan.id && (
+              <div className="mt-4 border-t border-red-950 bg-red-950/20 p-4">
+                <p className="text-sm font-black text-red-200">このライブを削除しますか？</p>
+                <p className="mt-1 text-xs text-zinc-500">練習記録は「記録」タブに残ります。</p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteLivePlan(activeLivePlan.id);
+                      closeLiveDetail();
+                    }}
+                    className="min-h-10 rounded-full bg-red-500 px-4 text-xs font-black text-white hover:bg-red-400"
+                  >
+                    削除する
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteArchiveId(null)}
+                    className="min-h-10 rounded-full bg-zinc-800 px-4 text-xs font-black text-zinc-200 hover:bg-zinc-700"
+                  >
+                    やめる
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
 
             <div className="min-w-0 overflow-hidden border-t border-white/5 px-3 pb-4 pt-3 sm:px-5 sm:pb-6 sm:pt-4">
             {totalSongs === 0 && (
               <div className="border-y border-zinc-900 px-4 py-10 text-center text-base text-zinc-500">
-                「編集」から曲を登録できます。
+                {isArchived ? '曲は登録されていません。' : '「編集」から曲を登録できます。'}
               </div>
             )}
 
@@ -410,13 +615,13 @@ export function LiveTab({
                         <button
                           type="button"
                           onClick={() => setOpenSongMenu(openSongMenu === menuKey ? null : menuKey)}
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                          className={(isArchived ? 'invisible pointer-events-none ' : '') + 'flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white'}
                           aria-label={`${song.曲名}のメニュー`}
                         >
                           <MoreVertical className="h-5 w-5" />
                         </button>
                       </div>
-                      {openSongMenu === menuKey && (
+                      {!isArchived && openSongMenu === menuKey && (
                         <div className="mb-2 ml-auto mr-1 w-52 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black">
                           <button
                             type="button"
@@ -467,13 +672,13 @@ export function LiveTab({
                         <button
                           type="button"
                           onClick={() => setOpenSongMenu(openSongMenu === menuKey ? null : menuKey)}
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                          className={(isArchived ? 'invisible pointer-events-none ' : '') + 'flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-800 hover:text-white'}
                           aria-label={`${song.title}のメニュー`}
                         >
                           <MoreVertical className="h-5 w-5" />
                         </button>
                       </div>
-                      {openSongMenu === menuKey && (
+                      {!isArchived && openSongMenu === menuKey && (
                         <div className="mb-2 ml-auto mr-1 w-52 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black">
                           <button
                             type="button"
@@ -517,7 +722,7 @@ export function LiveTab({
             </div>
           </section>
 
-          {showPlaylistEditor && (
+          {!isArchived && showPlaylistEditor && (
             <>
               <section className="min-w-0 rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-2xl">
             <div className="mb-3 flex items-center gap-2">
@@ -621,149 +826,6 @@ export function LiveTab({
         </section>
       )}
 
-      <section className="min-w-0 overflow-hidden pt-2">
-        <div className="mb-3 flex items-end justify-between gap-3 px-1">
-          <div>
-            <p className="text-xs font-bold uppercase text-zinc-500">Archive</p>
-            <h2 className="mt-1 text-2xl font-black text-white">過去のライブ</h2>
-          </div>
-          <span className="text-sm font-bold text-zinc-500">{archivedLives.length}件</span>
-        </div>
-
-        {archivedLives.length === 0 ? (
-          <div className="border-y border-zinc-900 px-4 py-10 text-center text-base text-zinc-600">
-            終了したライブがここに残ります。
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {archivedLives.map((plan) => {
-              const archivedSongs = plan.songNos
-                .map((no) => songs.find((song) => song.No === no))
-                .filter((song): song is Song => Boolean(song));
-              const archivedMinutes = getPlanMinutes(plan, sessions);
-              const archivedSongCount = archivedSongs.length + plan.externalSongs.length;
-              const isExpanded = expandedArchiveId === plan.id;
-              const isDeleting = deleteArchiveId === plan.id;
-
-              return (
-                <article key={plan.id} className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                  <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-zinc-900 text-zinc-400">
-                      <Archive className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-lg font-black text-white">{plan.title}</h3>
-                      <p className="mt-0.5 truncate text-sm text-zinc-500">
-                        {formatLiveDate(plan.date)} ・ {archivedSongCount}曲 ・ 練習 {formatPracticeDuration(archivedMinutes)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedArchiveId(isExpanded ? null : plan.id)}
-                      className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-900 hover:text-white"
-                      title={isExpanded ? 'セットリストを閉じる' : 'セットリストを見る'}
-                      aria-label={isExpanded ? `${plan.title}を閉じる` : `${plan.title}のセットリストを見る`}
-                    >
-                      {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="border-t border-zinc-800">
-                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-                        <p className="text-sm font-bold text-zinc-300">セットリスト</p>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onRestoreLivePlan(plan.id);
-                              setExpandedArchiveId(null);
-                            }}
-                            className="flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black text-emerald-300 hover:bg-emerald-950/50"
-                          >
-                            <ArchiveRestore className="h-4 w-4" />
-                            復元
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteArchiveId(plan.id)}
-                            className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:bg-red-950/50 hover:text-red-300"
-                            title="このライブを削除"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {archivedSongCount === 0 ? (
-                        <p className="border-t border-zinc-900 px-4 py-8 text-center text-sm text-zinc-600">曲は登録されていません。</p>
-                      ) : (
-                        <div className="divide-y divide-zinc-900 border-t border-zinc-900">
-                          {archivedSongs.map((song, index) => {
-                            const songSessions = sessions.filter((session) => session.songNo === song.No);
-                            const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
-                            return (
-                              <div key={song.No} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3">
-                                <span className="text-sm text-zinc-600">{index + 1}</span>
-                                <div className="min-w-0">
-                                  <p className="truncate text-base font-bold text-white">{song.曲名}</p>
-                                  <p className="truncate text-sm text-zinc-500">{song.アーティスト}</p>
-                                </div>
-                                <p className="text-right text-sm font-bold text-zinc-400">{songSessions.length}回<br /><span className="text-xs text-zinc-600">{minutes}分</span></p>
-                              </div>
-                            );
-                          })}
-                          {plan.externalSongs.map((song, index) => {
-                            const songSessions = sessions.filter((session) => session.externalSongId === song.id);
-                            const minutes = songSessions.reduce((sum, session) => sum + session.durationMin, 0);
-                            return (
-                              <div key={song.id} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3">
-                                <span className="text-sm text-zinc-600">{archivedSongs.length + index + 1}</span>
-                                <div className="min-w-0">
-                                  <p className="truncate text-base font-bold text-white">{song.title}</p>
-                                  <p className="truncate text-sm text-zinc-500">{song.artist || '未設定'}</p>
-                                </div>
-                                <p className="text-right text-sm font-bold text-zinc-400">{songSessions.length}回<br /><span className="text-xs text-zinc-600">{minutes}分</span></p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {isDeleting && (
-                        <div className="border-t border-red-950 bg-red-950/20 px-4 py-3">
-                          <p className="text-sm font-bold text-red-200">このライブを削除しますか？</p>
-                          <p className="mt-1 text-xs text-zinc-500">練習記録は「記録」タブに残ります。</p>
-                          <div className="mt-3 flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onDeleteLivePlan(plan.id);
-                                setDeleteArchiveId(null);
-                                setExpandedArchiveId(null);
-                              }}
-                              className="min-h-10 rounded-full bg-red-500 px-4 text-xs font-black text-white hover:bg-red-400"
-                            >
-                              削除する
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteArchiveId(null)}
-                              className="min-h-10 rounded-full bg-zinc-800 px-4 text-xs font-black text-zinc-200 hover:bg-zinc-700"
-                            >
-                              やめる
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </div>
   );
 }
