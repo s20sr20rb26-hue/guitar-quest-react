@@ -61,6 +61,7 @@ function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [timelineThreadOpen, setTimelineThreadOpen] = useState(false);
   const [recordSkillViewOpen, setRecordSkillViewOpen] = useState(false);
+  const [liveDetailOpen, setLiveDetailOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
@@ -267,6 +268,7 @@ function App() {
       livePlans: [livePlan, ...prev.livePlans],
       activeLivePlanId: livePlan.id,
     }));
+    return livePlan.id;
   }, []);
 
   const updateLivePlan = useCallback((patch: Partial<LivePlan>) => {
@@ -493,7 +495,10 @@ function App() {
 
   const displayName = profile?.username || String(authSession.user.user_metadata.username || authSession.user.email?.split('@')[0] || 'ギタリスト');
   const displayInitial = Array.from(displayName.trim())[0]?.toUpperCase() || 'G';
-  const focusedViewOpen = (tab === 'timeline' && timelineThreadOpen) || (tab === 'history' && recordSkillViewOpen);
+  const focusedViewOpen =
+    (tab === 'timeline' && timelineThreadOpen) ||
+    (tab === 'history' && recordSkillViewOpen) ||
+    (tab === 'live' && liveDetailOpen);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
@@ -603,6 +608,7 @@ function App() {
               onLogSession={logSession}
               onLogExternalSession={logExternalSession}
               onLogLiveSession={logLiveSession}
+              onDetailViewChange={setLiveDetailOpen}
             />
           )}
           {tab === 'skills' && <SkillsTab state={state} onUpdateSkill={updateSkill} onResetAll={resetAllSkills} />}
