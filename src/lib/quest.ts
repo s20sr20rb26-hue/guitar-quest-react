@@ -1,5 +1,5 @@
 import type { Song } from '@/types';
-import { DEFAULT_SKILL_LEVELS as GENERATED_SKILL_LEVELS } from '@/data/skills';
+import { DEFAULT_SKILL_LEVELS as GENERATED_SKILL_LEVELS, parseSkillNames } from '@/data/skills';
 
 export interface SkillProgress {
   skill: string;
@@ -178,19 +178,11 @@ export function saveState(state: QuestState): void {
 }
 
 export function getRequiredSkills(song: Song): string[] {
-  const skills: string[] = [];
-  if (song.必須スキル) {
-    song.必須スキル.split(/[・、,/\s]+/).filter(Boolean).forEach((s) => skills.push(s.trim()));
-  }
-  return [...new Set(skills)];
+  return parseSkillNames(song.必須スキル);
 }
 
 export function getAcquiredSkills(song: Song): string[] {
-  const skills: string[] = [];
-  if (song.習得スキル) {
-    song.習得スキル.split(/[・、,/\s]+/).filter(Boolean).forEach((s) => skills.push(s.trim()));
-  }
-  return [...new Set(skills)];
+  return parseSkillNames(song.習得スキル);
 }
 
 export function canPlaySong(song: Song, skillLevels: Record<string, number>): { ok: boolean; missing: string[] } {
