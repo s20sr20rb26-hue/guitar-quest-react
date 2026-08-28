@@ -15,31 +15,36 @@ interface CoursesTabProps {
 export function CoursesTab({ songs, state, onToggleComplete, onLogSession }: CoursesTabProps) {
   const [search, setSearch] = useState('');
   const [routeFilter, setRouteFilter] = useState<string>('all');
+  const [rootFilter, setRootFilter] = useState<string>('all');
   const [skillFilter, setSkillFilter] = useState<string>('all');
   const [hideCompleted, setHideCompleted] = useState(false);
 
-  const completed = new Set(state.completedSongNos);
+  const completed = useMemo(() => new Set(state.completedSongNos), [state.completedSongNos]);
+  const rootOptions = useMemo(
+    () => [...new Set(songs.map((song) => song.ルーツ).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja')),
+    [songs],
+  );
 
   const filtered = useMemo(() => {
     return songs.filter((song) => {
       if (hideCompleted && completed.has(song.No)) return false;
       if (routeFilter !== 'all' && song.推奨ルート !== routeFilter) return false;
+      if (rootFilter !== 'all' && song.ルーツ !== rootFilter) return false;
       if (skillFilter !== 'all') {
-        const cat = SKILL_CATEGORIES.find((c) => c.key === skillFilter);
-        if (cat && cat.keywords.length > 0) {
-          const text = `${song.主スキル} ${song.必須スキル} ${song.習得スキル}`;
-          const matched = cat.keywords.some((kw) => text.includes(kw));
-          if (!matched) return false;
+        const category = SKILL_CATEGORIES.find((item) => item.key === skillFilter);
+        if (category && category.keywords.length > 0) {
+          const skills = [song.主スキル, song.必須スキル, song.習得スキル].join(' ');
+          if (!category.keywords.some((keyword) => skills.includes(keyword))) return false;
         }
       }
       if (search.trim()) {
         const q = search.trim().toLowerCase();
-        const text = `${song.曲名} ${song.アーティスト} ${song.主スキル}`.toLowerCase();
+        const text = [song.曲名, song.アーティスト, song.推奨ルート, song.ルーツ, song.主スキル].join(' ').toLowerCase();
         if (!text.includes(q)) return false;
       }
       return true;
     });
-  }, [songs, search, routeFilter, skillFilter, hideCompleted, completed]);
+  }, [songs, search, routeFilter, rootFilter, skillFilter, hideCompleted, completed]);
 
   return (
     <div className="space-y-5">
@@ -51,14 +56,14 @@ export function CoursesTab({ songs, state, onToggleComplete, onLogSession }: Cou
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="曲名、アーティスト、スキルで検索..."
+            placeholder="曲名、アーティスト、ルーツで検索..."
             className="w-full rounded-lg border border-slate-700 bg-slate-800/50 py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:border-amber-600 focus:outline-none"
           />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <Filter className="h-3.5 w-3.5" /> ルート
+            <Filter className="h-3.5 w-3.5" /> カテゴリ
           </div>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
             <FilterChip active={routeFilter === 'all'} onClick={() => setRouteFilter('all')} label="全部" />
@@ -75,20 +80,35 @@ export function CoursesTab({ songs, state, onToggleComplete, onLogSession }: Cou
 
         <div className="mt-2 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <Filter className="h-3.5 w-3.5" /> スキル
+            <Filter className="h-3.5 w-3.5" /> ルーツ
           </div>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-            {SKILL_CATEGORIES.map((cat) => (
+            <FilterChip active={rootFilter === 'all'} onClick={() => setRootFilter('all')} label="全部" />
+            {rootOptions.map((root) => (
               <FilterChip
-                key={cat.key}
-                active={skillFilter === cat.key}
-                onClick={() => setSkillFilter(cat.key)}
-                label={cat.label}
+                key={root}
+                active={rootFilter === root}
+                onClick={() => setRootFilter(root)}
+                label={root}
               />
             ))}
           </div>
         </div>
-
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+            <Filter className="h-3.5 w-3.5" /> スキル
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+            {SKILL_CATEGORIES.map((category) => (
+              <FilterChip
+                key={category.key}
+                active={skillFilter === category.key}
+                onClick={() => setSkillFilter(category.key)}
+                label={category.label}
+              />
+            ))}
+          </div>
+        </div>
         <label className="mt-3 flex items-center gap-2 text-xs text-slate-400">
           <input
             type="checkbox"
