@@ -31,6 +31,7 @@ import { supabase } from '@/lib/supabase';
 import {
   getAppHistoryState,
   pushAppHistoryView,
+  replaceAppHistoryView,
   returnFromAppHistoryView,
 } from '@/lib/appHistory';
 import {
@@ -391,6 +392,11 @@ function App() {
     });
   }, [openPracticeLog]);
 
+  const logTimelineSong = useCallback((target: PracticeTarget) => {
+    replaceAppHistoryView('practice-log', { practiceTarget: target });
+    setLogTarget(target);
+  }, []);
+
   const logLiveSession = useCallback((plan: LivePlan) => {
     openPracticeLog({
       songNo: 0,
@@ -413,6 +419,8 @@ function App() {
         date: recordedAt.toISOString(),
         songNo: target.songNo,
         songName: target.songName,
+        artist: target.artist,
+        artworkUrl: target.artworkUrl,
         externalSongId: target.externalSongId,
         livePlanId: target.livePlanId,
         durationMin,
@@ -573,6 +581,7 @@ function App() {
               currentUserId={authSession.user.id}
               refreshToken={timelineRefreshToken}
               onThreadViewChange={setTimelineThreadOpen}
+              onLogSong={logTimelineSong}
             />
           )}
 
