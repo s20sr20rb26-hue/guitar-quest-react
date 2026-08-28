@@ -1,4 +1,4 @@
-import { BarChart3, Clock3, Guitar, MessageSquare, Star, Trash2 } from 'lucide-react';
+import { BarChart3, CalendarDays, Clock3, Guitar, MessageSquare, Star, Trash2 } from 'lucide-react';
 import { SongArtwork } from '@/components/SongArtwork';
 import { INITIAL_SONGS } from '@/data/songs';
 import type { PracticeSession, QuestState } from '@/lib/quest';
@@ -154,17 +154,22 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                       const timeLabel = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
                       const databaseSong = INITIAL_SONGS.find((song) => song.No === session.songNo);
                       const externalSong = session.externalSongId ? externalSongsById.get(session.externalSongId) : undefined;
-                      const artist = databaseSong?.アーティスト || externalSong?.artist || '';
+                      const isLivePractice = Boolean(session.livePlanId);
+                      const artist = isLivePractice ? 'ライブ全体' : databaseSong?.アーティスト || externalSong?.artist || '';
                       return (
                         <article key={session.id} className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 hover:border-zinc-700">
                           <div className="flex items-start gap-3">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-950 text-emerald-400">
-                              <SongArtwork
-                                title={session.songName}
-                                artist={artist}
-                                src={externalSong?.artworkUrl}
-                                fallback={<Guitar className="h-5 w-5" />}
-                              />
+                              {isLivePractice ? (
+                                <CalendarDays className="h-5 w-5" />
+                              ) : (
+                                <SongArtwork
+                                  title={session.songName}
+                                  artist={artist}
+                                  src={externalSong?.artworkUrl}
+                                  fallback={<Guitar className="h-5 w-5" />}
+                                />
+                              )}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
@@ -185,7 +190,7 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                                 </span>
                                 <span className="flex items-center gap-1 text-xs text-zinc-600">
                                   <Clock3 className="h-3.5 w-3.5" />
-                                  練習記録
+                                  {isLivePractice ? 'ライブ練習' : '練習記録'}
                                 </span>
                               </div>
 
