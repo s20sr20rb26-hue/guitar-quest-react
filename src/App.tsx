@@ -60,6 +60,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [timelineThreadOpen, setTimelineThreadOpen] = useState(false);
+  const [recordSkillViewOpen, setRecordSkillViewOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
@@ -482,11 +483,12 @@ function App() {
 
   const displayName = profile?.username || String(authSession.user.user_metadata.username || authSession.user.email?.split('@')[0] || 'ギタリスト');
   const displayInitial = Array.from(displayName.trim())[0]?.toUpperCase() || 'G';
+  const focusedViewOpen = (tab === 'timeline' && timelineThreadOpen) || (tab === 'history' && recordSkillViewOpen);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
       <div className="relative">
-        {!(tab === 'timeline' && timelineThreadOpen) && <header className="sticky top-0 z-40 border-b border-zinc-900 bg-black/90 pt-safe backdrop-blur-xl">
+        {!focusedViewOpen && <header className="sticky top-0 z-40 border-b border-zinc-900 bg-black/90 pt-safe backdrop-blur-xl">
           <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -547,7 +549,7 @@ function App() {
         <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-10">
           {tab === 'history' && (
             <div className="mb-4 sm:mb-5">
-              <StatsBar songs={SONGS} state={state} />
+              <StatsBar songs={SONGS} state={state} onSkillViewChange={setRecordSkillViewOpen} />
             </div>
           )}
 
@@ -680,20 +682,22 @@ function App() {
         />
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
-        <div className="mx-auto grid max-w-6xl grid-cols-5">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={(tab === t.key ? 'text-emerald-400' : 'text-zinc-500') + ' flex min-h-16 flex-col items-center justify-center gap-1 transition-colors'}
-            >
-              <t.icon className="h-6 w-6" />
-              <span className="text-[11px] font-black">{t.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+      {!focusedViewOpen && (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
+          <div className="mx-auto grid max-w-6xl grid-cols-5">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={(tab === t.key ? 'text-emerald-400' : 'text-zinc-500') + ' flex min-h-16 flex-col items-center justify-center gap-1 transition-colors'}
+              >
+                <t.icon className="h-6 w-6" />
+                <span className="text-[11px] font-black">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       {logTarget && <LogSessionModal song={logTarget} onClose={closePracticeLog} onSave={saveSession} />}
     </div>
