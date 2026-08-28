@@ -1,7 +1,7 @@
 No,曲名,確認項目,現在値,修正案,優先度,状態,根拠URL,メモ
 3,Don't Say Lazy,曲名表記,Don't Say Lazy,"Don't say ""lazy""",中,提案,,公式CD表記との統一候補
 11,Le Freak,次候補,テレキャスターストライプ,対象曲を追加して次候補Noを設定,高,要確認,,現在の129曲には対象曲がない
-14,Smoke On The Water,推奨ルート,邦ロック定番,洋楽ロック,高,提案,,分類の明らかな見直し候補
+14,Smoke On The Water,カテゴリ,邦楽ロック,洋楽ロック,高,提案,,分類の明らかな見直し候補
 29,God Knows...,アーティスト表記,涼宮ハルヒ（平野綾）,涼宮ハルヒ(C.V.平野綾),中,提案,https://www.nintendo.co.jp/wiiu/hardware/features/karaoke/trialdisk/pdf/list_wahj.pdf,キャラクター名と声優名の表記を統一
 30,Only My Railgun,曲名表記,Only My Railgun,only my railgun,中,提案,https://fripside.net/musics/11716,fripSide公式サイトの表記
 39,Don't Stop Me Now,次候補,Green-Tinted Sixties Mind,対象曲を追加して次候補Noを設定,中,要確認,,現在の129曲には対象曲がない
@@ -16,4 +16,4 @@ No,曲名,確認項目,現在値,修正案,優先度,状態,根拠URL,メモ
 89,First Good Bye,アーティスト表記,涼宮ハルヒ（平野綾）,涼宮ハルヒ(C.V.平野綾),低,提案,,No.29と同じ表記ルールへ統一
 94,Allright,曲名・アーティスト,要確認,曲名の綴りとアーティストを再調査,高,要確認,,AlrightまたはAll Rightの可能性を確認
 104,Lost My Music,曲名・アーティスト表記,涼宮ハルヒ（平野綾）,公式表記へ統一,中,要確認,,大文字小文字とC.V.表記を同時に確認
-105,Säkkijärven Polkka,アーティスト・分類,フィンランド民謡 / 要確認,フィンランド民謡・推奨ルート再検討,中,要確認,,R&B/フュージョン分類も見直し候補
+105,Säkkijärven Polkka,アーティスト・分類,フィンランド民謡 / 要確認,フィンランド民謡・カテゴリ再検討,中,要確認,,R&B/フュージョン分類も見直し候補
