@@ -389,6 +389,15 @@ function App() {
     });
   }, [openPracticeLog]);
 
+  const logLiveSession = useCallback((plan: LivePlan) => {
+    openPracticeLog({
+      songNo: 0,
+      songName: plan.title,
+      artist: 'ライブ全体',
+      livePlanId: plan.id,
+    });
+  }, [openPracticeLog]);
+
   const saveSession = useCallback(
     (durationMin: number, memo: string, rating: number, focus: string, practiceDate: string) => {
       if (!logTarget || !authSession) return;
@@ -403,6 +412,7 @@ function App() {
         songNo: target.songNo,
         songName: target.songName,
         externalSongId: target.externalSongId,
+        livePlanId: target.livePlanId,
         durationMin,
         memo,
         rating,
@@ -592,6 +602,7 @@ function App() {
               onRemoveExternalSong={removeExternalSong}
               onLogSession={logSession}
               onLogExternalSession={logExternalSession}
+              onLogLiveSession={logLiveSession}
             />
           )}
           {tab === 'skills' && <SkillsTab state={state} onUpdateSkill={updateSkill} onResetAll={resetAllSkills} />}
