@@ -188,7 +188,7 @@ export function StatsBar({ songs, state, onSkillViewChange }: StatsBarProps) {
                         </div>
                       ) : (
                         <p className="border-l-2 border-zinc-800 py-3 pl-3 text-sm text-zinc-600">
-                          初期スキルまたは手動で登録したスキルです
+                          手動で登録したスキルです
                         </p>
                       )}
                     </div>
