@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run songs:build && vite build",
+    "build": "npm run data:build && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "data:build": "npm run skills:build && npm run songs:build",
+    "data:check": "npm run skills:check && npm run songs:check",
+    "skills:build": "node scripts/build-skill-data.mjs",
+    "skills:check": "node scripts/build-skill-data.mjs --check",
     "songs:build": "node scripts/build-song-data.mjs",
     "songs:check": "node scripts/build-song-data.mjs --check",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
