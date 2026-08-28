@@ -28,7 +28,15 @@ import { PasswordResetScreen } from '@/components/PasswordResetScreen';
 import { TimelineTab } from '@/components/TimelineTab';
 import { ProfileModal } from '@/components/ProfileModal';
 import { supabase } from '@/lib/supabase';
-import { createPracticePost, deletePracticePost, getProfile, updateProfile, type Profile } from '@/lib/social';
+import {
+  createPracticePost,
+  deletePracticePost,
+  deleteProfileAvatar,
+  getProfile,
+  updateProfile,
+  uploadProfileAvatar,
+  type Profile,
+} from '@/lib/social';
 
 const SONGS: Song[] = INITIAL_SONGS;
 
@@ -165,12 +173,19 @@ function App() {
     setTab('timeline');
   }, []);
 
-  const saveProfile = useCallback(async (username: string, avatarUrl?: string) => {
+  const saveProfile = useCallback(async (username: string, avatarFile?: File, removeAvatar = false) => {
     if (!authSession) return;
+    let avatarUrl = removeAvatar ? undefined : profile?.avatarUrl;
+    if (avatarFile) {
+      avatarUrl = await uploadProfileAvatar(authSession.user.id, avatarFile);
+    }
     const nextProfile = await updateProfile(authSession.user.id, username, avatarUrl);
     setProfile(nextProfile);
     setTimelineRefreshToken((current) => current + 1);
-  }, [authSession]);
+    if (removeAvatar) {
+      await deleteProfileAvatar(authSession.user.id).catch(() => undefined);
+    }
+  }, [authSession, profile?.avatarUrl]);
 
   const toggleComplete = useCallback((songNo: number) => {
     setState((prev) => {
