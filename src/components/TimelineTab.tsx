@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 interface TimelineTabProps {
   currentUserId: string;
   refreshToken: number;
+  onThreadViewChange: (open: boolean) => void;
 }
 
 function formatDuration(minutes: number): string {
@@ -63,7 +64,7 @@ function accountInitial(username: string): string {
   return Array.from(username.trim())[0]?.toUpperCase() || 'G';
 }
 
-export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
+export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange }: TimelineTabProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,6 +93,11 @@ export function TimelineTab({ currentUserId, refreshToken }: TimelineTabProps) {
   useEffect(() => {
     void loadPosts();
   }, [loadPosts, refreshToken]);
+
+  useEffect(() => {
+    onThreadViewChange(Boolean(threadPostId));
+    return () => onThreadViewChange(false);
+  }, [onThreadViewChange, threadPostId]);
 
   useEffect(() => {
     const channel = supabase
