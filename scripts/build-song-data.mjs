@@ -72,6 +72,47 @@ function parseCsv(text) {
   return rows;
 }
 
+function parseSkillNames(value, skillNames) {
+  const namesByLength = [...skillNames].sort((a, b) => b.length - a.length);
+
+  const segment = (part) => {
+    const memo = new Map();
+    const walk = (start) => {
+      if (start === part.length) return [];
+      if (memo.has(start)) return memo.get(start);
+
+      for (const skill of namesByLength) {
+        if (!part.startsWith(skill, start)) continue;
+        const end = start + skill.length;
+        if (end === part.length) {
+          const result = [skill];
+          memo.set(start, result);
+          return result;
+        }
+        if (part[end] !== '・') continue;
+        const rest = walk(end + 1);
+        if (rest) {
+          const result = [skill, ...rest];
+          memo.set(start, result);
+          return result;
+        }
+      }
+
+      memo.set(start, null);
+      return null;
+    };
+
+    return walk(0) ?? part.split('・').filter(Boolean);
+  };
+
+  return [...new Set(
+    value
+      .split(/[、,/\s]+/)
+      .filter(Boolean)
+      .flatMap((part) => skillNames.has(part) ? [part] : segment(part))
+  )];
+}
+
 function integer(value, label, rowNo, minimum, maximum, errors) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
@@ -125,7 +166,7 @@ const songs = records.map(({ rowNo, values }) => {
   }
 
   for (const field of ['主スキル', '必須スキル', '習得スキル']) {
-    const referencedSkills = values[field].split(/[・、,/\s]+/).filter(Boolean);
+    const referencedSkills = parseSkillNames(values[field], knownSkills);
     for (const skill of referencedSkills) {
       if (!knownSkills.has(skill)) {
         errors.push(`CSV ${rowNo}行目: ${field}の「${skill}」がskills.csvにありません。`);
