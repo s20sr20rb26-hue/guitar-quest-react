@@ -26,8 +26,9 @@ import { LiveTab } from '@/components/LiveTab';
 import { AuthScreen } from '@/components/AuthScreen';
 import { PasswordResetScreen } from '@/components/PasswordResetScreen';
 import { TimelineTab } from '@/components/TimelineTab';
+import { ProfileModal } from '@/components/ProfileModal';
 import { supabase } from '@/lib/supabase';
-import { createPracticePost, deletePracticePost, getProfile, type Profile } from '@/lib/social';
+import { createPracticePost, deletePracticePost, getProfile, updateProfile, type Profile } from '@/lib/social';
 
 const SONGS: Song[] = INITIAL_SONGS;
 
@@ -46,6 +47,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [timelineRefreshToken, setTimelineRefreshToken] = useState(0);
   const [shareNotice, setShareNotice] = useState('');
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
@@ -162,6 +164,13 @@ function App() {
     await supabase.auth.signOut();
     setTab('timeline');
   }, []);
+
+  const saveProfile = useCallback(async (username: string, avatarUrl?: string) => {
+    if (!authSession) return;
+    const nextProfile = await updateProfile(authSession.user.id, username, avatarUrl);
+    setProfile(nextProfile);
+    setTimelineRefreshToken((current) => current + 1);
+  }, [authSession]);
 
   const toggleComplete = useCallback((songNo: number) => {
     setState((prev) => {
@@ -443,10 +452,20 @@ function App() {
                   <span className="font-black text-white">{state.completedSongNos.length}</span>
                   <span>/ {SONGS.length}</span>
                 </div>
-                <div className="flex min-w-0 items-center gap-2 rounded-full bg-zinc-900 py-1.5 pl-1.5 pr-2.5">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-black text-black">{displayInitial}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileEditor(true)}
+                  className="flex min-w-0 items-center gap-2 rounded-full bg-zinc-900 py-1.5 pl-1.5 pr-2.5 hover:bg-zinc-800"
+                  aria-label="プロフィールを編集"
+                  title="プロフィールを編集"
+                >
+                  {profile?.avatarUrl ? (
+                    <img src={profile.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-black text-black">{displayInitial}</span>
+                  )}
                   <span className="hidden max-w-28 truncate text-sm font-black text-white sm:block">{displayName}</span>
-                </div>
+                </button>
                 <button
                   type="button"
                   onClick={() => void signOut()}
@@ -597,6 +616,15 @@ function App() {
             </div>
           </section>
         </div>
+      )}
+
+      {showProfileEditor && profile && (
+        <ProfileModal
+          profile={profile}
+          email={authSession.user.email ?? ''}
+          onClose={() => setShowProfileEditor(false)}
+          onSave={saveProfile}
+        />
       )}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-900 bg-black/95 pb-safe backdrop-blur-xl sm:hidden">
