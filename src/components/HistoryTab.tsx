@@ -226,12 +226,12 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
 
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 sm:items-center sm:p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4"
           role="presentation"
           onClick={() => setDeleteTarget(null)}
         >
           <section
-            className="w-full rounded-t-xl border border-zinc-800 bg-zinc-950 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-w-md sm:rounded-xl sm:p-6"
+            className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl sm:p-6"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-practice-title"
