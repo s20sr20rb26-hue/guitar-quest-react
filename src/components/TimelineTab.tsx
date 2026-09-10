@@ -6,6 +6,7 @@ import {
   Heart,
   LoaderCircle,
   MessageCircle,
+  MessageSquareText,
   Music2,
   Plus,
   RefreshCw,
@@ -21,6 +22,7 @@ import type { PracticeTarget } from '@/lib/quest';
 import { searchItunesSongs, type ItunesTrack } from '@/lib/itunes';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
+  createTimelineNote,
   createPostComment,
   deletePostComment,
   fetchTimeline,
@@ -92,6 +94,11 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
   const [songSearchResults, setSongSearchResults] = useState<ItunesTrack[]>([]);
   const [songSearchLoading, setSongSearchLoading] = useState(false);
   const [songSearchError, setSongSearchError] = useState('');
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [noteComposerOpen, setNoteComposerOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [noteError, setNoteError] = useState('');
 
   const loadPosts = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true);
@@ -121,11 +128,18 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
       const historyState = getAppHistoryState();
       const historyPostId = historyState.timelinePostId;
       const isSongSearch = historyState.guitarQuestView === 'timeline-song-search';
+      const isNoteComposer = historyState.guitarQuestView === 'timeline-note-compose';
       setSongSearchOpen(isSongSearch);
+      setNoteComposerOpen(isNoteComposer);
+      setCreateMenuOpen(false);
       if (!isSongSearch) {
         setSongSearchQuery('');
         setSongSearchResults([]);
         setSongSearchError('');
+      }
+      if (!isNoteComposer) {
+        setNoteDraft('');
+        setNoteError('');
       }
       if (historyState.guitarQuestView === 'timeline-thread' && typeof historyPostId === 'string') {
         setThreadPostId(historyPostId);
@@ -168,10 +182,47 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
 
 
   const openSongSearch = () => {
+    setCreateMenuOpen(false);
     if (getAppHistoryState().guitarQuestView !== 'timeline-song-search') {
       pushAppHistoryView('timeline-song-search');
     }
     setSongSearchOpen(true);
+  };
+
+  const openNoteComposer = () => {
+    setCreateMenuOpen(false);
+    setNoteError('');
+    if (getAppHistoryState().guitarQuestView !== 'timeline-note-compose') {
+      pushAppHistoryView('timeline-note-compose');
+    }
+    setNoteComposerOpen(true);
+  };
+
+  const closeNoteComposer = () => {
+    setNoteComposerOpen(false);
+    setNoteDraft('');
+    setNoteError('');
+    returnFromAppHistoryView('timeline-note-compose');
+  };
+
+  const submitNote = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const body = noteDraft.trim();
+    if (!body || noteSubmitting) return;
+
+    setNoteSubmitting(true);
+    setNoteError('');
+    try {
+      await createTimelineNote(currentUserId, body);
+      setNoteComposerOpen(false);
+      setNoteDraft('');
+      returnFromAppHistoryView('timeline-note-compose');
+      await loadPosts(true);
+    } catch {
+      setNoteError('つぶやきを投稿できませんでした');
+    } finally {
+      setNoteSubmitting(false);
+    }
   };
 
   const closeSongSearch = () => {
@@ -287,6 +338,7 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
 
   const renderPost = (post: TimelinePost) => {
     const inThread = threadPostId === post.id;
+    const postDate = post.kind === 'note' ? post.createdAt : post.practicedAt;
     return (
       <>
         <div className="flex items-center gap-3">
@@ -302,42 +354,50 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
               {post.username}
               {post.userId === currentUserId && <span className="ml-2 text-xs text-emerald-400">あなた</span>}
             </p>
-            <time className="text-xs font-bold text-zinc-600" dateTime={post.practicedAt}>{formatPostDate(post.practicedAt)}</time>
+            <time className="text-xs font-bold text-zinc-600" dateTime={postDate}>{formatPostDate(postDate)}</time>
           </div>
         </div>
 
-        <div className="ml-0 mt-3 rounded-lg bg-zinc-900 p-4 sm:ml-14">
-          <div className="flex gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400">
-              <SongArtwork
-                title={post.songName}
-                artist={post.artist}
-                src={post.artworkUrl}
-                fallback={<Guitar className="h-7 w-7" />}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-lg font-black text-white">{post.songName}</p>
-              {post.artist && <p className="truncate text-sm font-bold text-zinc-500">{post.artist}</p>}
-              <p className="mt-2 flex items-center gap-2 text-xl font-black text-white">
-                <Clock3 className="h-5 w-5 text-emerald-400" />
-                {formatDuration(post.durationMin)}
-              </p>
-            </div>
+        {post.kind === 'note' ? (
+          <div className="ml-0 mt-4 sm:ml-14">
+            <p className="whitespace-pre-wrap break-words text-base leading-7 text-zinc-100">{post.body}</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="ml-0 mt-3 rounded-lg bg-zinc-900 p-4 sm:ml-14">
+              <div className="flex gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-800 text-emerald-400">
+                  <SongArtwork
+                    title={post.songName}
+                    artist={post.artist}
+                    src={post.artworkUrl}
+                    fallback={<Guitar className="h-7 w-7" />}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-black text-white">{post.songName}</p>
+                  {post.artist && <p className="truncate text-sm font-bold text-zinc-500">{post.artist}</p>}
+                  <p className="mt-2 flex items-center gap-2 text-xl font-black text-white">
+                    <Clock3 className="h-5 w-5 text-emerald-400" />
+                    {formatDuration(post.durationMin)}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        {(post.memo || post.focus) && (
-          <div className="ml-0 mt-3 sm:ml-14">
-            {post.memo && <p className="whitespace-pre-wrap text-base leading-relaxed text-zinc-200">{post.memo}</p>}
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-500">
-              {post.focus && <span className="rounded-full bg-zinc-900 px-3 py-1.5">{post.focus}</span>}
-              <span className="flex items-center gap-1 text-amber-400" aria-label={`自己評価 ${post.rating}`}>
-                <Star className="h-4 w-4 fill-current" />
-                {post.rating}
-              </span>
-            </div>
-          </div>
+            {(post.memo || post.focus) && (
+              <div className="ml-0 mt-3 sm:ml-14">
+                {post.memo && <p className="whitespace-pre-wrap text-base leading-relaxed text-zinc-200">{post.memo}</p>}
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-500">
+                  {post.focus && <span className="rounded-full bg-zinc-900 px-3 py-1.5">{post.focus}</span>}
+                  <span className="flex items-center gap-1 text-amber-400" aria-label={`自己評価 ${post.rating}`}>
+                    <Star className="h-4 w-4 fill-current" />
+                    {post.rating}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="ml-0 mt-4 flex items-center gap-2 border-t border-zinc-900 pt-2 sm:ml-14">
@@ -393,7 +453,7 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
           </button>
           <div>
             <p className="text-xs font-black uppercase text-emerald-400">Thread</p>
-            <h2 className="text-xl font-black text-white">練習記録</h2>
+            <h2 className="text-xl font-black text-white">{threadPost.kind === 'note' ? 'つぶやき' : '練習記録'}</h2>
           </div>
         </header>
 
@@ -499,8 +559,8 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
       ) : posts.length === 0 ? (
         <div className="flex min-h-72 flex-col items-center justify-center px-6 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-emerald-400"><Sparkles className="h-7 w-7" /></div>
-          <h3 className="mt-4 text-lg font-black text-white">最初の練習記録を投稿しよう</h3>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-500">曲の「練習を記録」から保存すると、ここに表示されます。</p>
+          <h3 className="mt-4 text-lg font-black text-white">最初の投稿をしよう</h3>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">練習記録や、音楽についてのつぶやきがここに表示されます。</p>
         </div>
       ) : (
         <div className="divide-y divide-zinc-800">
@@ -509,6 +569,65 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
               {renderPost(post)}
             </article>
           ))}
+        </div>
+      )}
+
+      {noteComposerOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex bg-black sm:items-center sm:justify-center sm:bg-black/80 sm:p-4"
+          role="presentation"
+          onClick={closeNoteComposer}
+        >
+          <section
+            className="flex h-[100dvh] w-full flex-col bg-black sm:h-auto sm:max-w-lg sm:rounded-xl sm:border sm:border-zinc-800 sm:bg-zinc-950 sm:shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="timeline-note-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-4 border-b border-zinc-800 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-4">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-400">New post</p>
+                <h3 id="timeline-note-title" className="mt-1 text-xl font-black text-white">つぶやく</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeNoteComposer}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                aria-label="閉じる"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+
+            <form onSubmit={(event) => void submitNote(event)} className="flex min-h-0 flex-1 flex-col p-4 sm:flex-none">
+              <label className="flex min-h-0 flex-1 flex-col">
+                <span className="sr-only">つぶやきの内容</span>
+                <textarea
+                  value={noteDraft}
+                  onChange={(event) => setNoteDraft(event.target.value)}
+                  maxLength={500}
+                  autoFocus
+                  placeholder="今日の練習や音楽のことを書こう"
+                  className="min-h-56 flex-1 resize-none bg-transparent text-lg leading-8 text-white outline-none placeholder:text-zinc-700 sm:flex-none"
+                />
+              </label>
+
+              {noteError && <p className="mt-3 text-sm font-bold text-red-300" role="alert">{noteError}</p>}
+
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-zinc-800 pb-[env(safe-area-inset-bottom)] pt-4 sm:pb-0">
+                <span className="text-sm font-bold text-zinc-600">{noteDraft.length} / 500</span>
+                <button
+                  type="submit"
+                  disabled={!noteDraft.trim() || noteSubmitting}
+                  className="flex min-h-11 items-center gap-2 rounded-full bg-emerald-500 px-5 text-sm font-black text-black hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-600"
+                >
+                  {noteSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                  投稿する
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
       )}
 
@@ -606,14 +725,48 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
         </div>
       )}
 
+      {createMenuOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-30 cursor-default bg-transparent"
+            onClick={() => setCreateMenuOpen(false)}
+            aria-label="投稿メニューを閉じる"
+          />
+          <div className="fixed bottom-[calc(9.75rem+env(safe-area-inset-bottom))] right-4 z-40 w-64 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black sm:bottom-[5.75rem] sm:right-6">
+            <button
+              type="button"
+              onClick={openNoteComposer}
+              className="grid min-h-16 w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-3 px-4 text-left hover:bg-zinc-900"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500 text-black">
+                <MessageSquareText className="h-5 w-5" />
+              </span>
+              <span className="text-base font-black text-white">つぶやく</span>
+            </button>
+            <button
+              type="button"
+              onClick={openSongSearch}
+              className="grid min-h-16 w-full grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-3 border-t border-zinc-800 px-4 text-left hover:bg-zinc-900"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-emerald-400">
+                <Music2 className="h-5 w-5" />
+              </span>
+              <span className="text-base font-black text-white">曲を練習記録</span>
+            </button>
+          </div>
+        </>
+      )}
+
       <button
         type="button"
-        onClick={openSongSearch}
+        onClick={() => setCreateMenuOpen((open) => !open)}
         className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-xl shadow-black/50 transition-transform hover:bg-emerald-400 active:scale-95 sm:bottom-6 sm:right-6"
-        aria-label="エチュード一覧にない曲を練習記録"
-        title="好きな曲を練習記録"
+        aria-label={createMenuOpen ? '投稿メニューを閉じる' : '投稿メニューを開く'}
+        aria-expanded={createMenuOpen}
+        title="投稿する"
       >
-        <Plus className="h-7 w-7" strokeWidth={3} />
+        <Plus className={`h-7 w-7 transition-transform ${createMenuOpen ? 'rotate-45' : ''}`} strokeWidth={3} />
       </button>
     </section>
   );
