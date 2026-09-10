@@ -8,6 +8,7 @@ export interface Profile {
 
 export interface TimelinePost {
   id: string;
+  kind: 'practice' | 'note';
   userId: string;
   username: string;
   avatarUrl?: string;
@@ -18,6 +19,7 @@ export interface TimelinePost {
   memo: string;
   focus: string;
   rating: number;
+  body: string;
   practicedAt: string;
   createdAt: string;
   likesCount: number;
@@ -68,6 +70,8 @@ interface CommentRow {
   created_at: string;
   profiles: ProfileRelation | ProfileRelation[] | null;
 }
+
+const TIMELINE_NOTE_FOCUS = '__guitar_quest_timeline_note__';
 
 function relationProfile(value: TimelineRow['profiles']): ProfileRelation | null {
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -204,8 +208,10 @@ export async function fetchTimeline(currentUserId: string): Promise<TimelinePost
   return rows.map((row) => {
     const profile = relationProfile(row.profiles);
     const postLikes = likesByPost.get(row.id) ?? [];
+    const isNote = row.focus === TIMELINE_NOTE_FOCUS;
     return {
       id: row.id,
+      kind: isNote ? 'note' as const : 'practice' as const,
       userId: row.user_id,
       username: profile?.username || 'ギタリスト',
       avatarUrl: profile?.avatar_url ?? undefined,
@@ -213,9 +219,10 @@ export async function fetchTimeline(currentUserId: string): Promise<TimelinePost
       artist: row.artist,
       artworkUrl: row.artwork_url ?? undefined,
       durationMin: row.duration_min,
-      memo: row.memo,
-      focus: row.focus,
+      memo: isNote ? '' : row.memo,
+      focus: isNote ? '' : row.focus,
       rating: row.rating,
+      body: isNote ? row.memo : '',
       practicedAt: row.practiced_at,
       createdAt: row.created_at,
       likesCount: postLikes.length,
@@ -223,6 +230,23 @@ export async function fetchTimeline(currentUserId: string): Promise<TimelinePost
       comments: commentsByPost.get(row.id) ?? [],
     };
   });
+}
+
+export async function createTimelineNote(userId: string, body: string): Promise<void> {
+  const createdAt = new Date().toISOString();
+  const { error } = await supabase.from('practice_posts').insert({
+    user_id: userId,
+    song_name: 'つぶやき',
+    artist: '',
+    artwork_url: null,
+    duration_min: 1,
+    memo: body.trim(),
+    focus: TIMELINE_NOTE_FOCUS,
+    rating: 3,
+    practiced_at: createdAt,
+  });
+
+  if (error) throw error;
 }
 
 export async function setPostLike(postId: string, userId: string, liked: boolean): Promise<void> {

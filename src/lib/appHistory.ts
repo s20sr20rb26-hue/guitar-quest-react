@@ -1,4 +1,10 @@
-export type AppHistoryView = 'practice-log' | 'timeline-thread' | 'timeline-song-search' | 'record-skills' | 'live-detail';
+export type AppHistoryView =
+  | 'practice-log'
+  | 'timeline-thread'
+  | 'timeline-song-search'
+  | 'timeline-note-compose'
+  | 'record-skills'
+  | 'live-detail';
 
 export interface AppHistoryState extends Record<string, unknown> {
   guitarQuestView?: AppHistoryView;
