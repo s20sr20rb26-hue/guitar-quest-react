@@ -1,4 +1,5 @@
 import { BarChart3, CalendarDays, Clock3, Guitar, MessageSquare, Star, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { SongArtwork } from '@/components/SongArtwork';
 import { INITIAL_SONGS } from '@/data/songs';
 import type { PracticeSession, QuestState } from '@/lib/quest';
@@ -30,6 +31,7 @@ function formatGroupDate(key: string, todayKey: string): string {
 }
 
 export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
+  const [deleteTarget, setDeleteTarget] = useState<PracticeSession | null>(null);
   const sessions = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
   const externalSongsById = new Map(
     state.livePlans.flatMap((plan) => plan.externalSongs).map((song) => [song.id, song])
@@ -202,7 +204,8 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
                               )}
                             </div>
                             <button
-                              onClick={() => onDeleteSession(session.id)}
+                              type="button"
+                              onClick={() => setDeleteTarget(session)}
                               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-red-950/50 hover:text-red-300"
                               title="削除"
                               aria-label={`${session.songName}の記録を削除`}
@@ -220,6 +223,47 @@ export function HistoryTab({ state, onDeleteSession }: HistoryTabProps) {
           </div>
         )}
       </section>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 sm:items-center sm:p-4"
+          role="presentation"
+          onClick={() => setDeleteTarget(null)}
+        >
+          <section
+            className="w-full rounded-t-xl border border-zinc-800 bg-zinc-950 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-w-md sm:rounded-xl sm:p-6"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-practice-title"
+            aria-describedby="delete-practice-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="delete-practice-title" className="text-xl font-black text-white">投稿を消去しますか？</h3>
+            <p id="delete-practice-description" className="mt-2 text-sm leading-relaxed text-zinc-400">
+              「{deleteTarget.songName}」の練習記録を削除します。この操作は取り消せません。
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="min-h-12 rounded-lg bg-zinc-900 px-4 text-base font-black text-zinc-200 hover:bg-zinc-800"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteSession(deleteTarget.id);
+                  setDeleteTarget(null);
+                }}
+                className="min-h-12 rounded-lg bg-red-600 px-4 text-base font-black text-white hover:bg-red-500"
+              >
+                消去する
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
