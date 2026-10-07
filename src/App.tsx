@@ -27,7 +27,7 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { PasswordResetScreen } from '@/components/PasswordResetScreen';
 import { TimelineTab } from '@/components/TimelineTab';
 import { ProfileModal } from '@/components/ProfileModal';
-import { supabase } from '@/lib/supabase';
+import { supabase, withTimeout } from '@/lib/supabase';
 import {
   getAppHistoryState,
   pushAppHistoryView,
@@ -59,6 +59,7 @@ function App() {
   const [logTarget, setLogTarget] = useState<PracticeTarget | null>(null);
   const [authSession, setAuthSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authNotice, setAuthNotice] = useState('');
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [timelineThreadOpen, setTimelineThreadOpen] = useState(false);
   const [recordSkillViewOpen, setRecordSkillViewOpen] = useState(false);
@@ -100,15 +101,25 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setAuthSession(data.session);
-      setAuthLoading(false);
-    });
+    void withTimeout(supabase.auth.getSession(), 8000)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (!mounted) return;
+        setAuthSession(data.session);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAuthSession(null);
+        setAuthNotice('セッションを確認できませんでした。もう一度ログインしてください。');
+      })
+      .finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setAuthSession(nextSession);
       setAuthLoading(false);
+      if (nextSession) setAuthNotice('');
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       if (!nextSession) setProfile(null);
     });
@@ -499,7 +510,7 @@ function App() {
     return <PasswordResetScreen onDone={() => setPasswordRecovery(false)} />;
   }
 
-  if (!authSession) return <AuthScreen />;
+  if (!authSession) return <AuthScreen initialError={authNotice} />;
 
   const displayName = profile?.username || String(authSession.user.user_metadata.username || authSession.user.email?.split('@')[0] || 'ギタリスト');
   const displayInitial = Array.from(displayName.trim())[0]?.toUpperCase() || 'G';
