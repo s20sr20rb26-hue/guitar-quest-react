@@ -10,3 +10,16 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     detectSessionInUrl: true,
   },
 });
+
+export async function withTimeout<T>(request: PromiseLike<T>, timeoutMs = 10000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(request), timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
