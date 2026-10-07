@@ -4,7 +4,11 @@ import { supabase } from '@/lib/supabase';
 
 type AuthMode = 'login' | 'signup';
 
-export function AuthScreen() {
+interface AuthScreenProps {
+  initialError?: string;
+}
+
+export function AuthScreen({ initialError = '' }: AuthScreenProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -166,7 +170,7 @@ export function AuthScreen() {
             </span>
           </label>
 
-          {error && <p className="rounded-lg bg-red-950/70 px-3 py-2 text-sm font-bold text-red-200" role="alert">{error}</p>}
+          {(error || initialError) && <p className="rounded-lg bg-red-950/70 px-3 py-2 text-sm font-bold text-red-200" role="alert">{error || initialError}</p>}
           {message && <p className="rounded-lg bg-emerald-950 px-3 py-2 text-sm font-bold text-emerald-200" role="status">{message}</p>}
 
           <button

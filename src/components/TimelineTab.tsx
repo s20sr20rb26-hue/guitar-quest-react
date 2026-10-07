@@ -29,7 +29,7 @@ import {
   setPostLike,
   type TimelinePost,
 } from '@/lib/social';
-import { supabase } from '@/lib/supabase';
+import { supabase, withTimeout } from '@/lib/supabase';
 import {
   getAppHistoryState,
   pushAppHistoryView,
@@ -105,9 +105,9 @@ export function TimelineTab({ currentUserId, refreshToken, onThreadViewChange, o
     else setLoading(true);
     setError('');
     try {
-      setPosts(await fetchTimeline(currentUserId));
+      setPosts(await withTimeout(fetchTimeline(currentUserId), 10000));
     } catch {
-      setError('タイムラインを読み込めませんでした');
+      setError('タイムラインを読み込めませんでした。通信状態を確認して、もう一度お試しください。');
     } finally {
       setLoading(false);
       setRefreshing(false);
